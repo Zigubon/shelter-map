@@ -10,8 +10,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
-        body { font-family: 'Pretendard', sans-serif; margin: 0; padding: 0; }
-        #map { width: 100%; height: 100vh; }
+        /* 화면 높이 설정 보강 (흰 화면 방지) */
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #map { width: 100%; height: 100%; }
         
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
@@ -20,11 +21,7 @@
             text-align: center; min-width: 200px;
         }
         h2 { margin: 0; font-size: 18px; color: #2c3e50; font-weight: bold; }
-        
-        /* 날짜 스타일 (회색, 작은 글씨) */
         .date-text { margin: 4px 0 8px 0; font-size: 12px; color: #888; }
-        
-        /* 상태 메시지 스타일 */
         .status-text { margin: 0; font-size: 13px; color: #333; font-weight: 500; }
     </style>
 </head>
@@ -33,7 +30,7 @@
     <div class="info-box">
         <h2>🌞 서울시 무더위 쉼터</h2>
         <p class="date-text">(2025-12-04 기준)</p>
-        <p id="status-msg" class="status-text">데이터를 불러오는 중...</p>
+        <p id="status-msg" class="status-text">데이터 로딩 중...</p>
     </div>
 
     <div id="map"></div>
@@ -43,7 +40,7 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 줌 레벨 13 유지 (서울 확대)
+        // 1. 지도 생성 (서울 확대: 줌 13)
         var map = L.map('map').setView([37.5665, 126.9780], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -52,7 +49,14 @@
 
         var markers = L.markerClusterGroup();
 
-        Papa.parse("./shelter_data.csv", {
+        // 2. 데이터 불러오기 (절대 주소 사용)
+        // ★ 아래 따옴표 안에 아까 복사한 주소를 넣어주세요!
+        var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv"; 
+        
+        // (만약 주소 복사가 어려우시면 위 주소를 그대로 써보세요. 
+        //  ID가 'zigubon', 저장소 이름이 'shelter-map', 파일명이 'shelter_data.csv'가 맞다면 작동합니다.)
+
+        Papa.parse(csvUrl, {
             download: true,
             header: true,
             dynamicTyping: true,
@@ -62,6 +66,12 @@
                 var data = results.data;
                 var count = 0;
                 
+                // 데이터가 비었는지 확인
+                if (!data || data.length === 0) {
+                    alert("데이터 파일은 읽었지만 내용이 비어있습니다.");
+                    return;
+                }
+
                 data.forEach(function(row) {
                     var lat = row['위도'] || row['WGS84위도'];
                     var lng = row['경도'] || row['WGS84경도'];
@@ -70,12 +80,7 @@
 
                     if (lat && lng) {
                         var marker = L.marker([lat, lng])
-                                      .bindPopup(`
-                                        <div style="text-align:center; min-width:150px;">
-                                            <h4 style="margin:0 0 5px 0;">${name}</h4>
-                                            <span style="font-size:12px; color:gray;">${address}</span>
-                                        </div>
-                                      `);
+                                      .bindPopup(`<b>${name}</b><br>${address}`);
                         markers.addLayer(marker);
                         count++;
                     }
@@ -83,16 +88,17 @@
 
                 map.addLayer(markers);
                 
-                // 개수 업데이트
                 if (count > 0) {
                     document.getElementById('status-msg').innerText = `총 ${count}곳 운영 중`;
                 } else {
-                    document.getElementById('status-msg').innerText = `데이터 없음`;
+                    document.getElementById('status-msg').innerText = "데이터가 없습니다.";
+                    alert("데이터를 읽었지만 '위도/경도' 컬럼을 찾지 못했습니다. CSV 파일의 제목줄을 확인해주세요.");
                 }
             },
             error: function(err) {
                 console.error(err);
-                alert("데이터 로딩 실패");
+                alert("데이터 파일을 찾을 수 없습니다! (404 Error)\nCSV 파일 이름이나 경로를 다시 확인해주세요.");
+                document.getElementById('status-msg').innerText = "데이터 로딩 실패";
             }
         });
     </script>
