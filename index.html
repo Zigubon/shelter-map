@@ -10,10 +10,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
-        /* 화면 높이 설정 보강 (흰 화면 방지) */
         html, body { height: 100%; margin: 0; padding: 0; }
         #map { width: 100%; height: 100%; }
         
+        /* 정보 박스 스타일 */
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
             background: white; padding: 15px 20px; border-radius: 15px;
@@ -22,15 +22,17 @@
         }
         h2 { margin: 0; font-size: 18px; color: #2c3e50; font-weight: bold; }
         .date-text { margin: 4px 0 8px 0; font-size: 12px; color: #888; }
-        .status-text { margin: 0; font-size: 13px; color: #333; font-weight: 500; }
+        .legend-text { font-size: 12px; color: #3498db; margin-top: 5px; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <div class="info-box">
-        <h2>🌞 서울시 무더위 쉼터</h2>
-        <p class="date-text">(2025-12-04 기준)</p>
-        <p id="status-msg" class="status-text">데이터 로딩 중...</p>
+        <h2>🌞 서울시 무더위 쉼터 분석</h2>
+        <p class="date-text">(2025-12-30 기준)</p>
+        <p id="status-msg" style="margin:0; font-size:13px; font-weight:500;">데이터 분석 중...</p>
+        
+        <p class="legend-text">🔵 원 = 반경 500m (보행 접근성)</p>
     </div>
 
     <div id="map"></div>
@@ -40,21 +42,18 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 1. 지도 생성 (서울 확대: 줌 13)
-        var map = L.map('map').setView([37.5665, 126.9780], 13);
+        // 1. 지도 생성 (서울 확대 / 성능 최적화 모드 켜기)
+        var map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.9780], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
         var markers = L.markerClusterGroup();
+        var circles = L.layerGroup(); // 원(Circle)을 담을 별도 레이어
 
-        // 2. 데이터 불러오기 (절대 주소 사용)
-        // ★ 아래 따옴표 안에 아까 복사한 주소를 넣어주세요!
-        var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv"; 
-        
-        // (만약 주소 복사가 어려우시면 위 주소를 그대로 써보세요. 
-        //  ID가 'zigubon', 저장소 이름이 'shelter-map', 파일명이 'shelter_data.csv'가 맞다면 작동합니다.)
+        // 2. 데이터 불러오기 (보내주신 정확한 주소 적용)
+        var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
 
         Papa.parse(csvUrl, {
             download: true,
@@ -66,12 +65,6 @@
                 var data = results.data;
                 var count = 0;
                 
-                // 데이터가 비었는지 확인
-                if (!data || data.length === 0) {
-                    alert("데이터 파일은 읽었지만 내용이 비어있습니다.");
-                    return;
-                }
-
                 data.forEach(function(row) {
                     var lat = row['위도'] || row['WGS84위도'];
                     var lng = row['경도'] || row['WGS84경도'];
@@ -79,26 +72,36 @@
                     var address = row['도로명주소'] || "";
 
                     if (lat && lng) {
+                        // (1) 핀 생성
                         var marker = L.marker([lat, lng])
                                       .bindPopup(`<b>${name}</b><br>${address}`);
                         markers.addLayer(marker);
+                        
+                        // (2) 반경 500m 원 그리기 (분석 시각화)
+                        L.circle([lat, lng], {
+                            color: 'transparent',    // 테두리 없음
+                            fillColor: '#3498db',    // 파란색 채우기
+                            fillOpacity: 0.08,       // 8% 투명도 (겹치면 진해짐)
+                            radius: 500              // 500m 반경
+                        }).addTo(circles);
+
                         count++;
                     }
                 });
 
+                // 지도에 표시 (원 먼저 깔고, 그 위에 핀 올리기)
+                circles.addTo(map);
                 map.addLayer(markers);
                 
                 if (count > 0) {
-                    document.getElementById('status-msg').innerText = `총 ${count}곳 운영 중`;
+                    document.getElementById('status-msg').innerText = `총 ${count}곳 분석 완료`;
                 } else {
-                    document.getElementById('status-msg').innerText = "데이터가 없습니다.";
-                    alert("데이터를 읽었지만 '위도/경도' 컬럼을 찾지 못했습니다. CSV 파일의 제목줄을 확인해주세요.");
+                    document.getElementById('status-msg').innerText = "데이터 없음";
                 }
             },
             error: function(err) {
                 console.error(err);
-                alert("데이터 파일을 찾을 수 없습니다! (404 Error)\nCSV 파일 이름이나 경로를 다시 확인해주세요.");
-                document.getElementById('status-msg').innerText = "데이터 로딩 실패";
+                alert("데이터 로딩 실패! 주소를 다시 확인해주세요.");
             }
         });
     </script>
