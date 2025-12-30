@@ -41,7 +41,7 @@
 
     <script>
         // 지도 초기화 (서울 중심)
-        var map = L.map('map').setView([37.5665, 126.9780], 11);
+        var map = L.map('map').setView([37.5665, 126.9780], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
@@ -86,7 +86,7 @@
                 
                 // 데이터가 있으면 그 범위로 줌 이동
                 if (count > 0) {
-                    map.fitBounds(markers.getBounds());
+                    map.fitBounds(...)
                     document.getElementById('status-msg').innerText = `총 ${count}개의 쉼터 운영 중`;
                 } else {
                     document.getElementById('status-msg').innerText = `데이터를 찾을 수 없습니다.`;
@@ -99,4 +99,5 @@
         });
     </script>
 </body>
+
 </html>
