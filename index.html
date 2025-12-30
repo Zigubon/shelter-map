@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>지구본 - 무더위 쉼터 모니터링</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
+    <style>
+        body { font-family: 'Pretendard', sans-serif; margin: 0; padding: 0; }
+        
+        /* 지도 전체 화면 채우기 */
+        #map { width: 100%; height: 100vh; }
+
+        /* 지도 위에 떠있는 정보 박스 */
+        .info-box {
+            position: absolute; top: 10px; left: 60px; z-index: 1000;
+            background: white; padding: 15px 20px; border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: center; min-width: 200px;
+        }
+        h2 { margin: 0; font-size: 16px; color: #2c3e50; }
+        p { margin: 5px 0 0 0; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div class="info-box">
+        <h2>🌞 서울시 무더위 쉼터 현황</h2>
+        <p id="status-msg">데이터를 불러오는 중...</p>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <script>
+        // 지도 초기화 (서울 중심)
+        var map = L.map('map').setView([37.5665, 126.9780], 11);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // 클러스터 그룹 생성
+        var markers = L.markerClusterGroup();
+
+        // ★ 파일명 수정됨: shelter_data.csv
+        Papa.parse("./shelter_data.csv", {
+            download: true,       // 서버에서 다운로드
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            encoding: "UTF-8",    // UTF-8 저장 필수
+            complete: function(results) {
+                var data = results.data;
+                var count = 0;
+                
+                data.forEach(function(row) {
+                    // 데이터 매칭 (유연하게 처리)
+                    var lat = row['위도'] || row['WGS84위도'];
+                    var lng = row['경도'] || row['WGS84경도'];
+                    var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
+                    var address = row['도로명주소'] || "";
+
+                    if (lat && lng) {
+                        var marker = L.marker([lat, lng])
+                                      .bindPopup(`
+                                        <div style="text-align:center; min-width:150px;">
+                                            <h4 style="margin:0 0 5px 0;">${name}</h4>
+                                            <span style="font-size:12px; color:gray;">${address}</span>
+                                        </div>
+                                      `);
+                        markers.addLayer(marker);
+                        count++;
+                    }
+                });
+
+                // 지도에 추가
+                map.addLayer(markers);
+                
+                // 데이터가 있으면 그 범위로 줌 이동
+                if (count > 0) {
+                    map.fitBounds(markers.getBounds());
+                    document.getElementById('status-msg').innerText = `총 ${count}개의 쉼터 운영 중`;
+                } else {
+                    document.getElementById('status-msg').innerText = `데이터를 찾을 수 없습니다.`;
+                }
+            },
+            error: function(err) {
+                console.error(err);
+                alert("⚠️ 주의: 이 파일은 웹 서버(Live Server 등)에서 실행해야 작동합니다.\n그냥 더블클릭해서 열면 보안 문제로 데이터를 못 읽어올 수 있습니다.");
+            }
+        });
+    </script>
+</body>
+</html>
