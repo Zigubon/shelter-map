@@ -25,6 +25,10 @@
         .fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; border: 0; width: 40px; height: 40px; border-radius: 8px; font-size: 20px; cursor: pointer; }
         
         .legend-bar { height: 10px; width: 100%; background: linear-gradient(to right, #feedde, #a63603); margin: 5px 0; }
+        
+        /* 팝업 스타일 */
+        .custom-popup .leaflet-popup-content-wrapper { border-radius: 10px; }
+        .popup-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -32,16 +36,20 @@
     <div id="map-wrapper">
         <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
         <div class="info-box">
-            <h2 style="margin:0 0 10px 0; font-size:18px; text-align:center;">서울시 단계구분도</h2>
+            <h2 style="margin:0 0 5px 0; font-size:18px; text-align:center;">서울시 복지 지도</h2>
+            <p style="font-size:11px; text-align:center; color:#666; margin-bottom:15px;">2026.01.01 데이터 기준</p>
+
             <div style="display:flex; gap:5px; margin-bottom:10px;">
                 <button class="layer-btn active" onclick="setMode('elderly')">🔴 고령자</button>
                 <button class="layer-btn" onclick="setMode('poverty')">🟠 취약계층</button>
             </div>
+            
             <div class="legend-bar" id="legend-bar"></div>
             <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
-                <span>적음</span><span>많음</span>
+                <span id="legend-min">적음</span><span id="legend-max">많음</span>
             </div>
-            <p id="status" style="margin-top:10px; font-size:12px; color:blue;">지도 파일 로딩 중...</p>
+            
+            <p id="status" style="margin-top:10px; font-size:12px; color:blue; text-align:center;">지도 준비 중...</p>
         </div>
         <div id="map"></div>
     </div>
@@ -50,6 +58,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
+        // 서울시 중심 좌표
         var map = L.map('map').setView([37.5665, 126.9780], 11);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap &copy; CARTO'
@@ -59,31 +68,34 @@
         var dongData = {};
         var currentMode = 'elderly';
 
-        // 1. 데이터(CSV) 로딩
+        // ★ 1. 데이터 파일 (CSV) 주소
         var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong_data.csv";
         
-        // 2. ★ 지도 모양(GeoJSON) 로딩 (선생님 저장소 주소로 변경됨!)
+        // ★ 2. 지도 모양 파일 (GeoJSON) 주소 (선생님 깃허브)
         var geojsonUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong.geojson";
 
-        document.getElementById('status').innerText = "1. 인구 데이터 다운로드 중...";
+        // 실행 시작
+        document.getElementById('status').innerText = "1. 인구 데이터 로딩 중...";
 
         Papa.parse(csvUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
+                // 동 이름으로 데이터 정리
                 results.data.forEach(row => {
+                    // GeoJSON의 이름(동 이름)과 매칭하기 위해 저장
                     if (row.dong) dongData[row.dong] = row;
                 });
                 
-                document.getElementById('status').innerText = "2. 지도 모양 파일 다운로드 중...";
+                document.getElementById('status').innerText = "2. 지도 모양 그리는 중...";
                 loadGeoJSON();
             },
-            error: function() { alert("CSV 데이터 로딩 실패"); }
+            error: function() { alert("CSV 데이터 로딩 실패! 파일명을 확인해주세요."); }
         });
 
         function loadGeoJSON() {
             fetch(geojsonUrl)
                 .then(res => {
-                    if (!res.ok) throw new Error("파일 없음 (404)");
+                    if (!res.ok) throw new Error("지도 파일(seoul_dong.geojson)이 없습니다.");
                     return res.json();
                 })
                 .then(data => {
@@ -91,16 +103,20 @@
                         style: styleFeature,
                         onEachFeature: onEachFeature
                     }).addTo(map);
-                    document.getElementById('status').innerText = "✅ 분석 완료 (2026.01.01 기준)";
+                    document.getElementById('status').innerText = "✅ 분석 완료";
                 })
                 .catch(err => {
-                    alert("⚠️ 지도 모양 파일(seoul_dong.geojson)을 깃허브에 올리셨나요?\n에러 내용: " + err);
+                    alert("⚠️ 지도 로딩 실패!\n" + err);
                     document.getElementById('status').innerText = "❌ 지도 파일 없음";
                 });
         }
 
         function styleFeature(feature) {
-            var dongName = feature.properties.name;
+            // GeoJSON 파일의 동 이름 (adm_nm 혹은 temp 등 파일마다 다름)
+            // 보통 'adm_nm'에 '서울 종로구 사직동' 형태로 들어있음
+            var fullName = feature.properties.adm_nm || feature.properties.name || ""; 
+            var dongName = fullName.split(" ").pop(); // "사직동"만 추출
+
             var data = dongData[dongName];
             var value = 0;
             if (data) value = (currentMode === 'elderly') ? data.elderly : data.poverty;
@@ -122,15 +138,19 @@
         }
 
         function onEachFeature(feature, layer) {
-            var name = feature.properties.name;
-            var data = dongData[name] || { elderly: 0, poverty: 0 };
-            layer.bindPopup(`
-                <div style="text-align:center;">
-                    <b>${name}</b><hr style="margin:5px 0;">
-                    🔴 고령자: ${data.elderly.toLocaleString()}명<br>
-                    🟠 수급자: ${data.poverty.toLocaleString()}명
+            var fullName = feature.properties.adm_nm || feature.properties.name || "이름없음";
+            var dongName = fullName.split(" ").pop();
+            var data = dongData[dongName] || { elderly: 0, poverty: 0 };
+            
+            var content = `
+                <div style="text-align:center; font-family:'Pretendard';">
+                    <h3 style="margin:0 0 5px 0; color:#333;">${dongName}</h3>
+                    <div class="popup-row"><span>🔴 고령자:</span> <b>${data.elderly.toLocaleString()}명</b></div>
+                    <div class="popup-row"><span>🟠 수급자:</span> <b>${data.poverty.toLocaleString()}명</b></div>
                 </div>
-            `);
+            `;
+            layer.bindPopup(content, { className: 'custom-popup' });
+            
             layer.on({
                 mouseover: function(e) { e.target.setStyle({ weight: 3, color: '#333', fillOpacity: 0.9 }); },
                 mouseout: function(e) { geojsonLayer.resetStyle(e.target); }
