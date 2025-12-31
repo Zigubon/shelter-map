@@ -13,43 +13,43 @@
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
         #map { width: 100%; height: 100%; }
         
+        /* 정보 박스 */
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
             background: white; padding: 20px; border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            text-align: center; min-width: 240px;
+            text-align: center; min-width: 250px;
         }
         h2 { margin: 0 0 5px 0; font-size: 18px; color: #2c3e50; font-weight: 800; }
         .date-text { margin: 0 0 10px 0; font-size: 12px; color: #888; }
         
-        /* ★ 자치구 선택 박스 스타일 */
+        /* 범례 */
+        .legend-box {
+            background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;
+            font-size: 12px; text-align: left;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
         .district-select {
             width: 100%; padding: 10px; margin-bottom: 10px;
             border: 1px solid #ddd; border-radius: 12px;
             font-size: 14px; color: #333; font-weight: bold;
-            appearance: none; /* 기본 화살표 제거 (브라우저 통일) */
-            background: #f8f9fa url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center;
-            background-size: 10px; cursor: pointer;
+            background: #fff; cursor: pointer;
         }
-        .district-select:focus { outline: none; border-color: #3498db; }
-
-        .filter-group { display: flex; gap: 5px; justify-content: center; margin-bottom: 15px; }
+        .filter-group { display: flex; gap: 5px; justify-content: center; margin-bottom: 10px; }
         .filter-btn {
             background: #f1f3f5; border: 1px solid #dee2e6; color: #495057;
             padding: 6px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
             cursor: pointer; transition: all 0.2s;
         }
         .filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
-        
         .gps-btn {
             background: #3498db; color: white; border: none;
             padding: 12px; border-radius: 12px;
             font-size: 14px; font-weight: bold; cursor: pointer;
             width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
         }
-        .gps-btn:hover { background: #2980b9; }
-
         #status-msg { margin: 10px 0 0 0; font-size: 13px; font-weight: 600; color: #333; }
     </style>
 </head>
@@ -58,6 +58,17 @@
     <div class="info-box">
         <h2>🌞 스마트 쉼터 지도</h2>
         <p class="date-text">(2025-12-30 기준)</p>
+
+        <div class="legend-box">
+            <div class="legend-item">
+                <span class="dot" style="background:#e74c3c; opacity:0.5;"></span> 
+                <span>🔴 고령 인구 밀집도</span>
+            </div>
+            <div class="legend-item">
+                <span class="dot" style="background:#3498db; opacity:0.4;"></span> 
+                <span>🔵 쉼터 커버리지 (500m)</span>
+            </div>
+        </div>
 
         <select class="district-select" onchange="moveDistrict(this.value)">
             <option value="seoul">📍 서울시 전체 보기</option>
@@ -109,57 +120,59 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 1. 서울 25개 자치구 좌표 데이터 (중심점)
+        // 1. 서울 25개 자치구 좌표
         const districtCoords = {
             "seoul": [37.5665, 126.9780],
-            "gangnam": [37.5172, 127.0473],
-            "gangdong": [37.5301, 127.1238],
-            "gangbuk": [37.6396, 127.0257],
-            "gangseo": [37.5509, 126.8497],
-            "gwanak": [37.4784, 126.9516],
-            "gwangjin": [37.5385, 127.0823],
-            "guro": [37.4954, 126.8874],
-            "geumcheon": [37.4565, 126.8954],
-            "nowon": [37.6542, 127.0568],
-            "dobong": [37.6688, 127.0471],
-            "dongdaemun": [37.5744, 127.0400],
-            "dongjak": [37.5124, 126.9393],
-            "mapo": [37.5663, 126.9016],
-            "seodaemun": [37.5791, 126.9368],
-            "seocho": [37.4837, 127.0324],
-            "seongdong": [37.5633, 127.0371],
-            "seongbuk": [37.5891, 127.0182],
-            "songpa": [37.5145, 127.1066],
-            "yangcheon": [37.5169, 126.8660],
-            "yeongdeungpo": [37.5264, 126.8962],
-            "yongsan": [37.5326, 126.9905],
-            "eunpyeong": [37.6027, 126.9291],
-            "jongno": [37.5730, 126.9794],
-            "jung": [37.5641, 126.9979],
+            "gangnam": [37.5172, 127.0473], "gangdong": [37.5301, 127.1238],
+            "gangbuk": [37.6396, 127.0257], "gangseo": [37.5509, 126.8497],
+            "gwanak": [37.4784, 126.9516], "gwangjin": [37.5385, 127.0823],
+            "guro": [37.4954, 126.8874], "geumcheon": [37.4565, 126.8954],
+            "nowon": [37.6542, 127.0568], "dobong": [37.6688, 127.0471],
+            "dongdaemun": [37.5744, 127.0400], "dongjak": [37.5124, 126.9393],
+            "mapo": [37.5663, 126.9016], "seodaemun": [37.5791, 126.9368],
+            "seocho": [37.4837, 127.0324], "seongdong": [37.5633, 127.0371],
+            "seongbuk": [37.5891, 127.0182], "songpa": [37.5145, 127.1066],
+            "yangcheon": [37.5169, 126.8660], "yeongdeungpo": [37.5264, 126.8962],
+            "yongsan": [37.5326, 126.9905], "eunpyeong": [37.6027, 126.9291],
+            "jongno": [37.5730, 126.9794], "jung": [37.5641, 126.9979],
             "jungnang": [37.6066, 127.0927]
         };
 
-        var map = L.map('map', { preferCanvas: true }).setView(districtCoords["seoul"], 12); // 초기 줌 12
+        var map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.9780], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
         var markers = L.markerClusterGroup();
         var circles = L.layerGroup();
-        var userMarker = null;
+        var redZones = L.layerGroup();
         var allShelterData = [];
 
-        // 데이터 로딩
-        var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
+        // 데이터 로딩 1: 쉼터 데이터
+        var shelterUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
+        
+        // 데이터 로딩 2: 고령자 현황 데이터 (새로 만든 파일)
+        // 주의: 파일명을 꼭 'vulnerable_data.csv'로 저장해서 올리셔야 합니다.
+        var vulnerableUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/vulnerable_data.csv";
 
-        Papa.parse(csvUrl, {
+        // 두 개의 데이터를 순서대로 불러오기 (쉼터 -> 취약계층)
+        Papa.parse(shelterUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
-            complete: function(results) {
-                allShelterData = results.data;
+            complete: function(shelterResults) {
+                allShelterData = shelterResults.data;
                 renderMap('all');
+
+                // 쉼터 다 그리면, 이제 취약계층 데이터 불러오기
+                Papa.parse(vulnerableUrl, {
+                    download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
+                    complete: function(vulResults) {
+                        renderRedZones(vulResults.data);
+                    },
+                    error: function() { console.log("취약계층 데이터 로딩 실패"); }
+                });
             },
             error: function() { alert("데이터 로딩 실패"); }
         });
 
-        // 지도 렌더링 함수
+        // 핀 & 파란 원 그리기
         function renderMap(category) {
             markers.clearLayers();
             circles.clearLayers();
@@ -169,64 +182,64 @@
                 var lat = row['위도'] || row['WGS84위도'];
                 var lng = row['경도'] || row['WGS84경도'];
                 var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
-                var address = row['도로명주소'] || "";
-
                 if (lat && lng) {
                     var isSenior = name.includes("경로당") || name.includes("노인");
-                    var show = false;
-                    if (category === 'all') show = true;
-                    else if (category === 'senior' && isSenior) show = true;
-                    else if (category === 'public' && !isSenior) show = true;
-
+                    var show = (category === 'all') || (category === 'senior' && isSenior) || (category === 'public' && !isSenior);
+                    
                     if (show) {
-                        markers.addLayer(L.marker([lat, lng]).bindPopup(`<b>${name}</b><br>${address}`));
+                        markers.addLayer(L.marker([lat, lng]).bindPopup(`<b>${name}</b>`));
                         L.circle([lat, lng], { color: 'transparent', fillColor: '#3498db', fillOpacity: 0.08, radius: 500 }).addTo(circles);
                         count++;
                     }
                 }
             });
-
             circles.addTo(map);
             map.addLayer(markers);
-            document.getElementById('status-msg').innerText = `총 ${count}곳 표시 중`;
+            document.getElementById('status-msg').innerText = `총 ${count}곳 분석 완료`;
         }
 
-        // 필터 버튼 클릭
+        // ★ 빨간 원 그리기 (실제 데이터 반영)
+        function renderRedZones(data) {
+            data.forEach(function(row) {
+                if (row.lat && row.lng && row.score) {
+                    // 원 크기 공식: 인구수의 제곱근 * 6 (적절한 크기로 조정)
+                    // 예: 10만명 -> 316 * 6 = 약 1900m (2km)
+                    var radius = Math.sqrt(row.score) * 6;
+                    
+                    L.circle([row.lat, row.lng], {
+                        color: 'red',
+                        fillColor: '#e74c3c',
+                        fillOpacity: 0.25,
+                        weight: 1,
+                        radius: radius
+                    }).addTo(redZones)
+                      .bindPopup(`<b>🚨 ${row.name}</b><br>고령 인구: ${row.score.toLocaleString()}명`);
+                }
+            });
+            redZones.addTo(map);
+        }
+
         function filterData(category, btnElement) {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             renderMap(category);
         }
 
-        // ★ 자치구 이동 함수
         function moveDistrict(districtName) {
             var coords = districtCoords[districtName];
-            if (coords) {
-                // 서울 전체면 줌을 좀 멀리(12), 자치구면 가까이(15)
-                var zoomLevel = (districtName === 'seoul') ? 12 : 15;
-                map.flyTo(coords, zoomLevel, { duration: 1.5 }); // 1.5초 동안 부드럽게 이동
-            }
+            if(coords) map.flyTo(coords, (districtName === 'seoul') ? 12 : 15, { duration: 1.5 });
         }
 
-        // 내 위치 찾기
         function findMyLocation() {
             if (!navigator.geolocation) { alert("위치 기능 미지원"); return; }
             var btn = document.querySelector('.gps-btn');
             btn.innerHTML = "📡 탐색 중...";
-            
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    var lat = pos.coords.latitude;
-                    var lng = pos.coords.longitude;
-                    map.flyTo([lat, lng], 16);
-                    if (userMarker) map.removeLayer(userMarker);
-                    userMarker = L.circleMarker([lat, lng], {
-                        radius: 10, fillColor: "#ff4757", color: "#fff", weight: 2, fillOpacity: 1
-                    }).addTo(map).bindPopup("<b>🚩 현재 내 위치</b>").openPopup();
-                    btn.innerHTML = "📍 내 주변 찾기";
-                },
-                function() { alert("위치 권한을 확인해주세요."); btn.innerHTML = "📍 내 주변 찾기"; }
-            );
+            navigator.geolocation.getCurrentPosition(pos => {
+                var lat = pos.coords.latitude, lng = pos.coords.longitude;
+                map.flyTo([lat, lng], 16);
+                L.circleMarker([lat, lng], { radius: 10, fillColor: "#ff4757", color: "#fff", fillOpacity: 1 }).addTo(map);
+                btn.innerHTML = "📍 내 주변 찾기";
+            });
         }
     </script>
 </body>
