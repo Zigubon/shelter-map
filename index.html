@@ -11,28 +11,19 @@
 
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
-        
-        /* ★ 맵을 감싸는 래퍼 (전체화면 기능을 위해 추가) */
-        #map-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
+        #map-wrapper { position: relative; width: 100%; height: 100%; }
         #map { width: 100%; height: 100%; }
         
-        /* 정보 박스 */
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95); /* 배경 살짝 투명하게 */
+            background: rgba(255, 255, 255, 0.95);
             padding: 20px; border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             text-align: center; min-width: 260px;
             backdrop-filter: blur(5px);
         }
         h2 { margin: 0 0 5px 0; font-size: 18px; color: #2c3e50; font-weight: 800; }
-        .date-text { margin: 0 0 10px 0; font-size: 12px; color: #888; }
         
-        /* 범례 */
         .legend-box {
             background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;
             font-size: 13px; text-align: left; font-weight: 600;
@@ -40,103 +31,48 @@
         .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
         .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 8px; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.2); }
 
-        .district-select {
-            width: 100%; padding: 10px; margin-bottom: 10px;
-            border: 1px solid #ddd; border-radius: 12px;
-            font-size: 14px; color: #333; font-weight: bold; cursor: pointer;
-        }
-        
+        .district-select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 12px; font-weight: bold; cursor: pointer; }
         .filter-group { display: flex; gap: 5px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
-        .filter-btn {
-            background: #fff; border: 1px solid #dee2e6; color: #495057;
-            padding: 8px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s;
-        }
-        .filter-btn:hover { background: #f8f9fa; }
+        .filter-btn { background: #fff; border: 1px solid #dee2e6; color: #495057; padding: 8px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
         
-        /* 취약계층 버튼 강조 */
-        .vul-btn.elderly.active { background: #e74c3c; border-color: #e74c3c; color: white; box-shadow: 0 2px 5px rgba(231, 76, 60, 0.4); }
-        .vul-btn.poverty.active { background: #e67e22; border-color: #e67e22; color: white; box-shadow: 0 2px 5px rgba(230, 126, 34, 0.4); }
+        .vul-btn.elderly.active { background: #e74c3c; border-color: #e74c3c; color: white; }
+        .vul-btn.poverty.active { background: #e67e22; border-color: #e67e22; color: white; }
 
-        .gps-btn {
-            background: #3498db; color: white; border: none;
-            padding: 12px; border-radius: 12px;
-            font-size: 14px; font-weight: bold; cursor: pointer;
-            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
-        }
-        .gps-btn:hover { background: #2980b9; transform: translateY(-1px); }
-
-        /* ★ 전체화면 버튼 스타일 */
-        .fullscreen-btn {
-            position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: white; border: none; width: 40px; height: 40px;
-            border-radius: 8px; cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: #333;
-        }
-        .fullscreen-btn:hover { background: #f8f9fa; }
-
-        #status-msg { margin: 10px 0 0 0; font-size: 13px; font-weight: 600; color: #333; }
+        .gps-btn { background: #3498db; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; }
+        .fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; border: none; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 20px; }
     </style>
 </head>
 <body>
 
     <div id="map-wrapper">
-        
-        <button class="fullscreen-btn" onclick="toggleFullScreen()" title="전체화면 보기">
-            ⛶
-        </button>
+        <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
 
         <div class="info-box">
-            <h2>🌞 스마트 쉼터 지도</h2>
-            <p class="date-text">(2025-12-30 기준)</p>
+            <h2>🌞 스마트 쉼터 지도 (동별 분석)</h2>
+            <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
+                📅 2026-01-01 기준 업데이트<br>
+                (고령자·수급자 데이터 탑재 완료)
+            </p>
 
             <div class="legend-box">
-                <div class="legend-item">
-                    <span class="dot" style="background:#e74c3c;"></span> 
-                    <span>🔴 고령자 (원 크기=인구)</span>
-                </div>
-                <div class="legend-item">
-                    <span class="dot" style="background:#e67e22;"></span> 
-                    <span>🟠 기초수급 (원 크기=인구)</span>
-                </div>
-                <div class="legend-item">
-                    <span class="dot" style="background:rgba(52, 152, 219, 0.4); border: 1px solid #3498db;"></span> 
-                    <span>🔵 쉼터 커버리지 (500m)</span>
-                </div>
+                <div class="legend-item"><span class="dot" style="background:#e74c3c;"></span> 🔴 고령자 밀집 (동)</div>
+                <div class="legend-item"><span class="dot" style="background:#e67e22;"></span> 🟠 기초수급 밀집 (동)</div>
+                <div class="legend-item"><span class="dot" style="background:rgba(52, 152, 219, 0.4); border:1px solid #3498db;"></span> 🔵 쉼터 커버리지</div>
             </div>
 
             <select class="district-select" onchange="moveDistrict(this.value)">
-                <option value="seoul">📍 서울시 전체 보기</option>
-                <option disabled>──────────</option>
+                <option value="seoul">📍 서울시 전체</option>
+                <option disabled>── 집중 관리구 ──</option>
+                <option value="nowon">노원구 (상세)</option>
+                <option value="gangseo">강서구 (상세)</option>
+                <option value="gwanak">관악구 (상세)</option>
+                <option value="eunpyeong">은평구 (상세)</option>
+                <option value="jungnang">중랑구 (상세)</option>
+                <option disabled>── 기타 자치구 ──</option>
                 <option value="gangnam">강남구</option>
-                <option value="gangdong">강동구</option>
-                <option value="gangbuk">강북구</option>
-                <option value="gangseo">강서구</option>
-                <option value="gwanak">관악구</option>
-                <option value="gwangjin">광진구</option>
-                <option value="guro">구로구</option>
-                <option value="geumcheon">금천구</option>
-                <option value="nowon">노원구</option>
-                <option value="dobong">도봉구</option>
-                <option value="dongdaemun">동대문구</option>
-                <option value="dongjak">동작구</option>
-                <option value="mapo">마포구</option>
-                <option value="seodaemun">서대문구</option>
-                <option value="seocho">서초구</option>
-                <option value="seongdong">성동구</option>
-                <option value="seongbuk">성북구</option>
                 <option value="songpa">송파구</option>
-                <option value="yangcheon">양천구</option>
-                <option value="yeongdeungpo">영등포구</option>
-                <option value="yongsan">용산구</option>
-                <option value="eunpyeong">은평구</option>
                 <option value="jongno">종로구</option>
-                <option value="jung">중구</option>
-                <option value="jungnang">중랑구</option>
             </select>
             
             <div class="filter-group">
@@ -150,31 +86,23 @@
                 <button class="filter-btn vul-btn poverty" onclick="toggleLayer('poverty', this)">🟠 취약계층 ON</button>
             </div>
 
-            <button class="gps-btn" onclick="findMyLocation()">
-                📍 내 주변 찾기
-            </button>
-
-            <p id="status-msg">데이터 분석 중...</p>
+            <button class="gps-btn" onclick="findMyLocation()">📍 내 주변 찾기</button>
+            <p id="status-msg" style="margin-top:10px; font-size:13px; font-weight:600;">데이터 로딩 중...</p>
         </div>
-
         <div id="map"></div>
     </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 자치구 좌표
+        // 좌표 데이터
         const districtCoords = {
-            "seoul": [37.5665, 126.9780], "gangnam": [37.5172, 127.0473], "gangdong": [37.5301, 127.1238],
-            "gangbuk": [37.6396, 127.0257], "gangseo": [37.5509, 126.8497], "gwanak": [37.4784, 126.9516],
-            "gwangjin": [37.5385, 127.0823], "guro": [37.4954, 126.8874], "geumcheon": [37.4565, 126.8954],
-            "nowon": [37.6542, 127.0568], "dobong": [37.6688, 127.0471], "dongdaemun": [37.5744, 127.0400],
-            "dongjak": [37.5124, 126.9393], "mapo": [37.5663, 126.9016], "seodaemun": [37.5791, 126.9368],
-            "seocho": [37.4837, 127.0324], "seongdong": [37.5633, 127.0371], "seongbuk": [37.5891, 127.0182],
-            "songpa": [37.5145, 127.1066], "yangcheon": [37.5169, 126.8660], "yeongdeungpo": [37.5264, 126.8962],
-            "yongsan": [37.5326, 126.9905], "eunpyeong": [37.6027, 126.9291], "jongno": [37.5730, 126.9794],
-            "jung": [37.5641, 126.9979], "jungnang": [37.6066, 127.0927]
+            "seoul": [37.5665, 126.9780], "gangnam": [37.5172, 127.0473], 
+            "nowon": [37.6542, 127.0568], "gangseo": [37.5509, 126.8497], 
+            "gwanak": [37.4784, 126.9516], "eunpyeong": [37.6027, 126.9291], 
+            "jungnang": [37.6066, 127.0927], "songpa": [37.5145, 127.1066], "jongno": [37.5730, 126.9794]
         };
 
         var map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.9780], 12);
@@ -187,21 +115,24 @@
 
         var allShelterData = [];
         
-        // 데이터 파일 경로
+        // 데이터 경로 (쉼터 + 새로 만든 동별 데이터)
         var shelterUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
-        var combinedVulUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/vulnerable_combined.csv";
+        var dongVulUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/dong_data_full.csv";
 
+        // 1. 쉼터 데이터 로딩
         Papa.parse(shelterUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
                 allShelterData = results.data;
                 renderShelters('all');
 
-                Papa.parse(combinedVulUrl, {
+                // 2. 동별 취약계층 데이터 로딩
+                Papa.parse(dongVulUrl, {
                     download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
                     complete: function(vulResults) {
-                        prepareVulLayers(vulResults.data);
-                    }
+                        prepareDongLayers(vulResults.data);
+                    },
+                    error: function() { console.log("동별 데이터 로딩 실패"); }
                 });
             }
         });
@@ -210,7 +141,6 @@
             markers.clearLayers();
             circles.clearLayers();
             var count = 0;
-
             allShelterData.forEach(function(row) {
                 var lat = row['위도'] || row['WGS84위도'];
                 var lng = row['경도'] || row['WGS84경도'];
@@ -220,7 +150,6 @@
                     var show = (category === 'all') || (category === 'senior' && isSenior) || (category === 'public' && !isSenior);
                     if (show) {
                         markers.addLayer(L.marker([lat, lng]).bindPopup(`<b>${name}</b>`));
-                        // 쉼터 커버리지 원 (파랑)
                         L.circle([lat, lng], { color: 'transparent', fillColor: '#3498db', fillOpacity: 0.08, radius: 500 }).addTo(circles);
                         count++;
                     }
@@ -231,41 +160,22 @@
             document.getElementById('status-msg').innerText = `총 ${count}곳 운영 중`;
         }
 
-        // ★ 시각화 개선: 더 크고 선명하게
-        function prepareVulLayers(data) {
+        // ★ 동별 데이터 시각화 (좌표 있는 것만 표시)
+        function prepareDongLayers(data) {
             data.forEach(function(row) {
                 if (row.lat && row.lng) {
-                    // 1. 고령자 (빨강) - 크기 키움 (*6 -> *9)
+                    // 동 단위이므로 원 크기를 구 단위보다 작게 설정
                     if (row.elderly) {
-                        var radius1 = Math.sqrt(row.elderly) * 9; 
+                        var radius1 = Math.sqrt(row.elderly) * 3.5; 
                         L.circle([row.lat, row.lng], {
-                            color: '#c0392b',       // 테두리: 진한 빨강
-                            fillColor: '#e74c3c',   // 채우기: 밝은 빨강
-                            fillOpacity: 0.25,      // 투명도 조절
-                            weight: 2,              // 테두리 두께 UP
-                            radius: radius1
-                        }).bindPopup(`
-                            <div style="text-align:center;">
-                                <b style="color:#c0392b; font-size:14px;">🚨 ${row.name} 고령인구</b><br>
-                                <span style="font-size:16px; font-weight:bold;">${row.elderly.toLocaleString()}명</span>
-                            </div>`)
-                          .addTo(elderlyLayer);
+                            color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 0.3, weight: 1, radius: radius1
+                        }).bindPopup(`<b>🚨 ${row.region} ${row.dong}</b><br>고령자: ${Number(row.elderly).toLocaleString()}명`).addTo(elderlyLayer);
                     }
-                    // 2. 경제취약 (주황) - 크기 키움 (*15 -> *20)
                     if (row.poverty) {
-                        var radius2 = Math.sqrt(row.poverty) * 20; 
+                        var radius2 = Math.sqrt(row.poverty) * 6; 
                         L.circle([row.lat, row.lng], {
-                            color: '#d35400',       // 테두리: 진한 주황
-                            fillColor: '#e67e22',   // 채우기: 밝은 주황
-                            fillOpacity: 0.35,      // 고령자보다 약간 더 진하게 (구분되게)
-                            weight: 2,
-                            radius: radius2
-                        }).bindPopup(`
-                            <div style="text-align:center;">
-                                <b style="color:#d35400; font-size:14px;">⚠️ ${row.name} 기초수급자</b><br>
-                                <span style="font-size:16px; font-weight:bold;">${row.poverty.toLocaleString()}명</span>
-                            </div>`)
-                          .addTo(povertyLayer);
+                            color: '#d35400', fillColor: '#e67e22', fillOpacity: 0.4, weight: 1, radius: radius2
+                        }).bindPopup(`<b>⚠️ ${row.region} ${row.dong}</b><br>수급자: ${Number(row.poverty).toLocaleString()}명`).addTo(povertyLayer);
                     }
                 }
             });
@@ -276,45 +186,34 @@
             if (map.hasLayer(layer)) {
                 map.removeLayer(layer);
                 btn.classList.remove('active');
-                btn.innerText = (type === 'elderly') ? "🔴 고령자 ON" : "🟠 취약계층 ON";
             } else {
                 map.addLayer(layer);
                 btn.classList.add('active');
-                btn.innerText = (type === 'elderly') ? "🔴 고령자 OFF" : "🟠 취약계층 OFF";
             }
         }
 
         function filterShelter(category, btnElement) {
-            var group = btnElement.parentElement;
-            group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btnElement.parentElement.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btnElement.classList.add('active');
             renderShelters(category);
         }
 
         function moveDistrict(districtName) {
             var coords = districtCoords[districtName];
-            if(coords) map.flyTo(coords, (districtName === 'seoul') ? 12 : 15, { duration: 1.5 });
+            if(coords) map.flyTo(coords, (districtName === 'seoul') ? 12 : 14, { duration: 1.5 });
         }
 
         function findMyLocation() {
             if (!navigator.geolocation) { alert("위치 기능 미지원"); return; }
             navigator.geolocation.getCurrentPosition(pos => {
-                var lat = pos.coords.latitude, lng = pos.coords.longitude;
-                map.flyTo([lat, lng], 16);
-                L.circleMarker([lat, lng], { radius: 10, fillColor: "#ff4757", color: "#fff", fillOpacity: 1 }).addTo(map);
+                map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
+                L.circleMarker([pos.coords.latitude, pos.coords.longitude], { radius: 10, fillColor: "#ff4757", color: "#fff", fillOpacity: 1 }).addTo(map);
             });
         }
-
-        // ★ 전체화면 기능 함수
         function toggleFullScreen() {
             var elem = document.getElementById('map-wrapper');
-            if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => {
-                    alert(`전체화면 모드 에러: ${err.message}`);
-                });
-            } else {
-                document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) elem.requestFullscreen().catch(err => alert(err));
+            else document.exitFullscreen();
         }
     </script>
 </body>
