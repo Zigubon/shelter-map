@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>지구본 - 스마트 복지 지도</title>
+    <title>서울 무더위 쉼터 모니터링</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,36 +14,48 @@
         #map-wrapper { position: relative; width: 100%; height: 100%; }
         #map { width: 100%; height: 100%; background: #f8f9fa; }
 
-        /* 정보 박스 */
+        /* 정보 박스 스타일 */
         .info-box {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.98);
+            background: rgba(255, 255, 255, 0.95);
             padding: 15px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            width: 240px;
+            width: 250px;
             font-size: 13px;
+            max-height: 90vh; overflow-y: auto; /* 화면 작을 때 스크롤 */
         }
-        h2 { margin: 0 0 10px 0; font-size: 16px; text-align: center; color: #333; }
+        h2 { margin: 0 0 10px 0; font-size: 16px; text-align: center; color: #2c3e50; font-weight: 800; letter-spacing: -0.5px; }
 
         /* 버튼 그룹 */
         .btn-group { display: flex; gap: 5px; margin-bottom: 10px; }
         .mode-btn, .filter-btn {
             flex: 1; padding: 8px 0; border: 1px solid #ddd; border-radius: 6px;
             background: white; font-size: 11px; font-weight: bold; cursor: pointer;
-            text-align: center;
+            text-align: center; transition: all 0.2s;
         }
-        .mode-btn.active.elderly { background: #e74c3c; color: white; border-color: #e74c3c; }
-        .mode-btn.active.poverty { background: #e67e22; color: white; border-color: #e67e22; }
+        .mode-btn.active.elderly { background: #800026; color: white; border-color: #800026; }
+        .mode-btn.active.poverty { background: #7f2704; color: white; border-color: #7f2704; }
         .filter-btn.active { background: #3498db; color: white; border-color: #3498db; }
+        
+        /* 상세 범례 스타일 */
+        .legend-container {
+            background: #f1f3f5; padding: 10px; border-radius: 8px; margin-bottom: 15px;
+        }
+        .legend-title { font-weight: bold; margin-bottom: 5px; font-size: 11px; color: #555; }
+        .legend-item { display: flex; align-items: center; margin-bottom: 3px; font-size: 11px; }
+        .legend-color { width: 12px; height: 12px; display: inline-block; margin-right: 8px; border: 1px solid #ccc; }
 
-        /* 범례 */
-        .legend-bar { height: 8px; width: 100%; border-radius: 4px; margin: 5px 0; background: #eee; }
-        .legend-labels { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+        /* 쉼터 범례 */
+        .shelter-legend { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; }
+        .circle-sample {
+            width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px;
+            background: rgba(52, 152, 219, 0.2); border: 1px solid #3498db;
+        }
 
-        /* 로딩 상태 모니터 */
+        /* 로딩 모니터 */
         .debug-box {
             position: absolute; bottom: 5px; left: 5px; z-index: 2000;
-            background: rgba(0,0,0,0.7); color: #0f0; padding: 5px 10px;
+            background: rgba(0,0,0,0.7); color: #fff; padding: 5px 10px;
             border-radius: 4px; font-size: 10px; font-family: monospace;
             pointer-events: none;
         }
@@ -57,30 +69,33 @@
         <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
         
         <div class="info-box">
-            <h2>서울시 복지 현황판</h2>
+            <h2>서울 무더위 쉼터 모니터링</h2>
             
-            <div style="font-weight:bold; margin-bottom:5px;">📊 배경 분석 (인구)</div>
+            <div style="font-weight:bold; margin-bottom:5px; color:#333;">📊 인구 밀집도 분석</div>
             <div class="btn-group">
                 <button class="mode-btn active elderly" onclick="setMode('elderly')">🔴 고령자</button>
                 <button class="mode-btn poverty" onclick="setMode('poverty')">🟠 취약계층</button>
             </div>
-            <div class="legend-bar" id="legend-bar"></div>
-            <div class="legend-labels">
-                <span>안전 (적음)</span><span>위험 (많음)</span>
-            </div>
+            
+            <div class="legend-container" id="dynamic-legend">
+                </div>
 
-            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+            <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
 
-            <div style="font-weight:bold; margin-bottom:5px;">⛱️ 쉼터 표시 (핀)</div>
+            <div style="font-weight:bold; margin-bottom:5px; color:#333;">⛱️ 쉼터 현황</div>
             <div class="btn-group">
                 <button class="filter-btn active" onclick="filterShelter('all', this)">전체</button>
                 <button class="filter-btn" onclick="filterShelter('senior', this)">경로당</button>
                 <button class="filter-btn" onclick="filterShelter('public', this)">누구나</button>
             </div>
+            
+            <div class="legend-item shelter-legend">
+                <span class="circle-sample"></span>
+                <span>접근성 반경 (300m)</span>
+            </div>
         </div>
 
         <div class="debug-box" id="debug-msg">시스템 초기화 중...</div>
-
         <div id="map"></div>
     </div>
 
@@ -99,39 +114,39 @@
         // --- 2. 변수 선언 ---
         var geojsonLayer;
         var markerCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16 });
-        var dongData = {}; // CSV 데이터 담을 곳
-        var shelterData = []; // 쉼터 데이터 담을 곳
+        var circleGroup = L.layerGroup().addTo(map); // 300m 반경 원들을 담을 그룹
+        
+        var dongData = {};
+        var shelterData = [];
         var currentMode = 'elderly';
 
-        // --- 3. 파일 경로 (깃허브 주소) ---
+        // --- 3. 파일 경로 ---
         var URL_DONG_CSV = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong_data.csv";
         var URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong.geojson";
         var URL_SHELTER = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
 
-        // --- 4. 로깅 함수 ---
+        // --- 4. 로깅 ---
         function log(msg) {
             console.log(msg);
             document.getElementById('debug-msg').innerText = msg;
         }
 
-        // --- 5. 데이터 로딩 시작 ---
+        // --- 5. 데이터 로딩 파이프라인 ---
         log("1. 동별 데이터 다운로드 중...");
         
         Papa.parse(URL_DONG_CSV, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
-                // 데이터 매핑 (이름 정규화)
                 results.data.forEach(row => {
                     var cleanName = normalizeName(row.full_name || row.dong);
                     if(cleanName) dongData[cleanName] = row;
                 });
-                log(`1. 동 데이터 ${Object.keys(dongData).length}개 로딩 완료. 지도 파일 받는 중...`);
-                loadGeoJSON(); // 다음 단계
+                log(`1. 데이터 ${Object.keys(dongData).length}개 완료. 지도 파일 로딩...`);
+                loadGeoJSON();
             },
-            error: function() { log("❌ 동별 데이터(CSV) 로딩 실패!"); }
+            error: function() { log("❌ 동별 데이터 로딩 실패!"); }
         });
 
-        // --- 6. 지도 모양(GeoJSON) 로딩 ---
         function loadGeoJSON() {
             fetch(URL_GEOJSON)
                 .then(res => res.json())
@@ -140,96 +155,124 @@
                         style: styleFeature,
                         onEachFeature: onEachFeature
                     }).addTo(map);
-                    
-                    log("2. 지도 그리기 완료. 쉼터 핀 로딩 중...");
-                    loadShelters(); // 다음 단계
+                    log("2. 지도 생성 완료. 쉼터 핀 로딩...");
+                    loadShelters();
                 })
-                .catch(err => log("❌ 지도 파일(GeoJSON) 로딩 실패! 파일명 확인 필요."));
+                .catch(err => log("❌ 지도 파일(GeoJSON) 로딩 실패!"));
         }
 
-        // --- 7. 쉼터 핀 로딩 ---
         function loadShelters() {
             Papa.parse(URL_SHELTER, {
                 download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
                 complete: function(results) {
                     shelterData = results.data;
                     renderShelters('all');
-                    setMode('elderly'); // 초기 색칠
-                    log("✅ 모든 데이터 로딩 및 분석 완료!");
-                    setTimeout(() => { document.getElementById('debug-msg').style.display = 'none'; }, 5000); // 5초 뒤 메시지 숨김
+                    setMode('elderly'); // 초기 모드 및 범례 생성
+                    log("✅ 모니터링 시스템 가동 중");
+                    setTimeout(() => { document.getElementById('debug-msg').style.display = 'none'; }, 3000);
                 },
-                error: function() { log("❌ 쉼터 데이터(CSV) 로딩 실패!"); }
+                error: function() { log("❌ 쉼터 데이터 로딩 실패!"); }
             });
         }
 
-        // --- 8. 핵심 로직: 이름 매칭 통역기 ---
+        // --- 6. 핵심 기능들 ---
+
         function normalizeName(name) {
             if (!name) return "";
-            // 가운뎃점(·)을 마침표(.)로, 공백 제거, 특수문자 통일
             return name.replace(/·/g, ".").replace(/\s+/g, "").trim(); 
         }
 
         function getDataByFeature(feature) {
-            // GeoJSON에 있는 이름 가져오기 (adm_nm: 서울특별시 종로구 사직동)
             var rawName = feature.properties.adm_nm || feature.properties.name || "";
-            // "종로구사직동" 형태로 변환
-            var simpleName = rawName.split(" ").slice(1).join(""); // 서울특별시 제외
-            
-            // 1차 시도: 그냥 찾기
+            var simpleName = rawName.split(" ").slice(1).join("");
             var key = normalizeName(rawName); 
+            
             if(dongData[key]) return dongData[key];
-
-            // 2차 시도: "종로구사직동"으로 찾기
             if(dongData[simpleName]) return dongData[simpleName];
 
-            // 3차 시도: 매핑 테이블 (행정구역 변경 대응)
             const mapTable = { 
-                "강남구일원2동": "강남구개포3동", 
-                "강동구상일동": "강동구상일1동",
-                "노원구중계2.3동": "노원구중계2.3동", // 그대로 유지
-                "종로구종로1.2.3.4가동": "종로구종로1.2.3.4가동"
+                "강남구일원2동": "강남구개포3동", "강동구상일동": "강동구상일1동",
+                "노원구중계2.3동": "노원구중계2.3동", "종로구종로1.2.3.4가동": "종로구종로1.2.3.4가동"
             };
-            
-            // GeoJSON 이름에서 구+동만 추출해서 매핑 테이블 확인
-            var shortKey = feature.properties.sggnm + feature.properties.adm_nm.split(" ").pop();
-            shortKey = normalizeName(shortKey); // 강남구일원2동
+            var shortKey = normalizeName(feature.properties.sggnm + feature.properties.adm_nm.split(" ").pop());
+            if(mapTable[shortKey] && dongData[normalizeName(mapTable[shortKey])]) return dongData[normalizeName(mapTable[shortKey])];
 
-            if(mapTable[shortKey]) {
-                var mappedName = normalizeName(mapTable[shortKey]);
-                if(dongData[mappedName]) return dongData[mappedName];
-            }
-
-            return { elderly: 0, poverty: 0 }; // 없으면 0
+            return { elderly: 0, poverty: 0 };
         }
 
-        // --- 9. 스타일링 및 기능 ---
+        // [기능 1] 동적 범례 생성 (Dynamic Legend)
+        function updateLegend() {
+            var container = document.getElementById('dynamic-legend');
+            var grades, colors, labelText;
+
+            if (currentMode === 'elderly') {
+                grades = [8000, 6000, 4000, 2000, 0];
+                colors = ['#800026', '#BD0026', '#E31A1C', '#FC4E2A', '#FFEDA0']; // 빨강 계열
+                labelText = "고령 인구수 (명)";
+            } else {
+                grades = [2500, 2000, 1500, 1000, 0];
+                colors = ['#7f2704', '#a63603', '#d94801', '#f16913', '#feedde']; // 주황 계열
+                labelText = "수급자 인구수 (명)";
+            }
+
+            var html = `<div class="legend-title">${labelText}</div>`;
+            for (var i = 0; i < grades.length; i++) {
+                var rangeStr = (i === 0) ? `${grades[i].toLocaleString()}명 이상` : 
+                               `${grades[i].toLocaleString()} ~ ${grades[i-1].toLocaleString()}`;
+                html += `
+                    <div class="legend-item">
+                        <i class="legend-color" style="background:${colors[i]}"></i>
+                        <span>${rangeStr}</span>
+                    </div>`;
+            }
+            container.innerHTML = html;
+        }
+
         function styleFeature(feature) {
             var data = getDataByFeature(feature);
             var value = (currentMode === 'elderly') ? data.elderly : data.poverty;
-            return {
-                fillColor: getColor(value),
-                weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.65
-            };
+            return { fillColor: getColor(value), weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.7 };
         }
 
         function getColor(d) {
             if (currentMode === 'elderly') {
-                return d > 8000 ? '#800026' : d > 6000 ? '#BD0026' : d > 4000 ? '#E31A1C' : d > 2000 ? '#FC4E2A' : '#FFEDA0';
+                return d > 8000 ? '#800026' : d > 6000 ? '#BD0026' : d > 4000 ? '#E31A1C' :
+                       d > 2000 ? '#FC4E2A' : '#FFEDA0';
             } else {
-                return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
+                return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' :
+                       d > 1000 ? '#f16913' : '#feedde';
             }
         }
 
+        // [기능 2] 쉼터 핀 + 접근성 반경(300m) 그리기
         function renderShelters(category) {
             markerCluster.clearLayers();
+            circleGroup.clearLayers(); // 기존 원 삭제
+
             shelterData.forEach(row => {
                 var lat = row['위도'] || row['WGS84위도'];
                 var lng = row['경도'] || row['WGS84경도'];
-                var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
+                var name = row['쉼터명칭'] || row['쉼터명'] || "";
+                
                 if (lat && lng) {
                     var isSenior = name.includes("경로당") || name.includes("노인");
                     var show = (category === 'all') || (category === 'senior' && isSenior) || (category === 'public' && !isSenior);
-                    if (show) markerCluster.addLayer(L.marker([lat, lng]).bindPopup(`<b>${name}</b>`));
+                    
+                    if (show) {
+                        // 1. 핀 추가
+                        var marker = L.marker([lat, lng]);
+                        marker.bindPopup(`<b>${name}</b>`);
+                        markerCluster.addLayer(marker);
+
+                        // 2. 접근성 반경(300m) 원 추가
+                        L.circle([lat, lng], {
+                            radius: 300, // 300미터
+                            color: 'transparent', // 테두리 없음
+                            fillColor: '#3498db', // 파란색
+                            fillOpacity: 0.15,    // 투명도
+                            interactive: false    // 마우스 이벤트 무시 (지도 클릭 방해 안 함)
+                        }).addTo(circleGroup);
+                    }
                 }
             });
             map.addLayer(markerCluster);
@@ -246,8 +289,8 @@
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             document.querySelector('.mode-btn.' + mode).classList.add('active');
-            var bar = document.getElementById('legend-bar');
-            bar.style.background = mode === 'elderly' ? 'linear-gradient(to right, #FFEDA0, #800026)' : 'linear-gradient(to right, #feedde, #7f2704)';
+            
+            updateLegend(); // 범례 업데이트
             if(geojsonLayer) geojsonLayer.setStyle(styleFeature);
         }
 
