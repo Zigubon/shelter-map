@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
         #map-wrapper { position: relative; width: 100%; height: 100%; }
@@ -17,163 +20,218 @@
             padding: 20px; border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             min-width: 260px;
+            max-width: 300px;
+            backdrop-filter: blur(5px);
         }
-        .layer-btn {
-            padding: 8px; border: 1px solid #ddd; background: white; cursor: pointer; width: 48%;
+        
+        h2 { margin: 0 0 5px 0; font-size: 18px; text-align: center; color: #2c3e50; }
+        .section-title { font-size: 12px; font-weight: bold; color: #555; margin-top: 10px; margin-bottom: 5px; }
+
+        /* 버튼 스타일 */
+        .btn-group { display: flex; gap: 5px; margin-bottom: 5px; }
+        .layer-btn, .filter-btn {
+            flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 8px;
+            background: white; font-size: 12px; font-weight: bold; cursor: pointer;
+            transition: all 0.2s;
         }
-        .layer-btn.active { background: #2c3e50; color: white; }
-        .fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; border: 0; width: 40px; height: 40px; border-radius: 8px; font-size: 20px; cursor: pointer; }
+        .layer-btn.active.elderly { background: #e74c3c; color: white; border-color: #e74c3c; }
+        .layer-btn.active.poverty { background: #e67e22; color: white; border-color: #e67e22; }
         
-        .legend-bar { height: 10px; width: 100%; background: linear-gradient(to right, #feedde, #a63603); margin: 5px 0; }
+        .filter-btn:hover { background: #f0f0f0; }
+        .filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
+
+        .legend-bar { height: 8px; width: 100%; border-radius: 4px; margin: 5px 0; }
+        .legend-labels { display: flex; justify-content: space-between; font-size: 10px; color: #666; }
+
+        .fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; border: 0; width: 40px; height: 40px; border-radius: 8px; font-size: 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         
-        /* 팝업 스타일 */
-        .custom-popup .leaflet-popup-content-wrapper { border-radius: 10px; }
-        .popup-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        /* 팝업 커스텀 */
+        .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; }
+        .custom-popup .leaflet-popup-content { margin: 15px; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="map-wrapper">
         <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
+        
         <div class="info-box">
-            <h2 style="margin:0 0 5px 0; font-size:18px; text-align:center;">서울시 복지 지도</h2>
-            <p style="font-size:11px; text-align:center; color:#666; margin-bottom:15px;">2026.01.01 데이터 기준</p>
+            <h2>서울시 복지 지도</h2>
+            <p style="font-size:11px; text-align:center; color:#666; margin-bottom:10px;">(배경: 인구현황 / 핀: 쉼터위치)</p>
 
-            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <button class="layer-btn active" onclick="setMode('elderly')">🔴 고령자</button>
-                <button class="layer-btn" onclick="setMode('poverty')">🟠 취약계층</button>
+            <div class="section-title">📊 지역 분석 모드</div>
+            <div class="btn-group">
+                <button class="layer-btn active elderly" onclick="setMode('elderly')">🔴 고령자</button>
+                <button class="layer-btn poverty" onclick="setMode('poverty')">🟠 취약계층</button>
             </div>
-            
             <div class="legend-bar" id="legend-bar"></div>
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
+            <div class="legend-labels">
                 <span id="legend-min">적음</span><span id="legend-max">많음</span>
             </div>
-            
-            <p id="status" style="margin-top:10px; font-size:12px; color:blue; text-align:center;">지도 준비 중...</p>
+
+            <div class="section-title" style="margin-top:15px;">⛱️ 무더위 쉼터 표시</div>
+            <div class="btn-group">
+                <button class="filter-btn active" onclick="filterShelter('all', this)">전체</button>
+                <button class="filter-btn" onclick="filterShelter('senior', this)">👴 경로당</button>
+                <button class="filter-btn" onclick="filterShelter('public', this)">🏢 누구나</button>
+            </div>
+
+            <p id="status" style="margin-top:15px; font-size:11px; color:blue; text-align:center;">데이터 로딩 중...</p>
         </div>
+
         <div id="map"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
-        // 서울시 중심 좌표
-        var map = L.map('map').setView([37.5665, 126.9780], 11);
+        // 지도 생성
+        var map = L.map('map', { zoomControl: false }).setView([37.5665, 126.9780], 11);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
 
+        // 변수 선언
         var geojsonLayer;
+        var markerCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16 }); // 줌 당기면 핀 분산
         var dongData = {};
+        var shelterData = [];
         var currentMode = 'elderly';
 
-        // ★ 1. 데이터 파일 (CSV) 주소
-        var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong_data.csv";
-        
-        // ★ 2. 지도 모양 파일 (GeoJSON) 주소 (선생님 깃허브)
+        // 파일 경로
+        var dongCsvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong_data.csv";
         var geojsonUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong.geojson";
+        var shelterCsvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
 
-        // 실행 시작
-        document.getElementById('status').innerText = "1. 인구 데이터 로딩 중...";
+        // 이름 매핑 (보정용)
+        const nameMapping = { "강남구 일원2동": "강남구 개포3동", "강동구 상일동": "강동구 상일1동" };
 
-        Papa.parse(csvUrl, {
+        // 실행 순서: 1.동데이터 -> 2.지도모양 -> 3.쉼터데이터
+        document.getElementById('status').innerText = "1. 지역 데이터 로딩 중...";
+
+        Papa.parse(dongCsvUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
-                // 동 이름으로 데이터 정리
-                results.data.forEach(row => {
-                    // GeoJSON의 이름(동 이름)과 매칭하기 위해 저장
-                    if (row.dong) dongData[row.dong] = row;
-                });
-                
-                document.getElementById('status').innerText = "2. 지도 모양 그리는 중...";
+                results.data.forEach(row => { if (row.full_name) dongData[row.full_name] = row; });
+                document.getElementById('status').innerText = "2. 지도 그리는 중...";
                 loadGeoJSON();
             },
-            error: function() { alert("CSV 데이터 로딩 실패! 파일명을 확인해주세요."); }
+            error: function() { alert("동별 데이터 로딩 실패"); }
         });
 
         function loadGeoJSON() {
             fetch(geojsonUrl)
-                .then(res => {
-                    if (!res.ok) throw new Error("지도 파일(seoul_dong.geojson)이 없습니다.");
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(data => {
                     geojsonLayer = L.geoJson(data, {
                         style: styleFeature,
                         onEachFeature: onEachFeature
                     }).addTo(map);
-                    document.getElementById('status').innerText = "✅ 분석 완료";
+                    
+                    document.getElementById('status').innerText = "3. 쉼터 위치 찍는 중...";
+                    loadShelters(); // 쉼터 로딩 시작
                 })
-                .catch(err => {
-                    alert("⚠️ 지도 로딩 실패!\n" + err);
-                    document.getElementById('status').innerText = "❌ 지도 파일 없음";
-                });
+                .catch(err => alert("지도 파일 로딩 실패"));
+        }
+
+        function loadShelters() {
+            Papa.parse(shelterCsvUrl, {
+                download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
+                complete: function(results) {
+                    shelterData = results.data;
+                    renderShelters('all'); // 핀 찍기
+                    setMode('elderly'); // 초기 모드 설정
+                    document.getElementById('status').innerText = "✅ 통합 분석 완료";
+                }
+            });
+        }
+
+        // --- 기능 함수들 ---
+
+        // 1. 쉼터 핀 찍기
+        function renderShelters(category) {
+            markerCluster.clearLayers(); // 기존 핀 삭제
+            
+            shelterData.forEach(row => {
+                var lat = row['위도'] || row['WGS84위도'];
+                var lng = row['경도'] || row['WGS84경도'];
+                var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
+                
+                if (lat && lng) {
+                    var isSenior = name.includes("경로당") || name.includes("노인");
+                    var show = (category === 'all') || (category === 'senior' && isSenior) || (category === 'public' && !isSenior);
+                    
+                    if (show) {
+                        var marker = L.marker([lat, lng]);
+                        marker.bindPopup(`<b>${name}</b>`);
+                        markerCluster.addLayer(marker);
+                    }
+                }
+            });
+            map.addLayer(markerCluster);
+        }
+
+        // 2. 쉼터 필터 버튼
+        function filterShelter(category, btnElement) {
+            var group = btnElement.parentElement;
+            group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            renderShelters(category);
+        }
+
+        // 3. 단계구분도 스타일링
+        function getDataByFeature(feature) {
+            var rawName = feature.properties.adm_nm || feature.properties.name || "";
+            var parts = rawName.split(" ");
+            var keyName = parts.length >= 3 ? parts[1] + " " + parts[2] : rawName;
+            keyName = keyName.replace(/·/g, ".");
+            if (nameMapping[keyName]) keyName = nameMapping[keyName];
+            return dongData[keyName] || { elderly: 0, poverty: 0 };
         }
 
         function styleFeature(feature) {
-            // GeoJSON 파일의 동 이름 (adm_nm 혹은 temp 등 파일마다 다름)
-            // 보통 'adm_nm'에 '서울 종로구 사직동' 형태로 들어있음
-            var fullName = feature.properties.adm_nm || feature.properties.name || ""; 
-            var dongName = fullName.split(" ").pop(); // "사직동"만 추출
-
-            var data = dongData[dongName];
-            var value = 0;
-            if (data) value = (currentMode === 'elderly') ? data.elderly : data.poverty;
-
-            return {
-                fillColor: getColor(value),
-                weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.75
-            };
+            var data = getDataByFeature(feature);
+            var value = (currentMode === 'elderly') ? data.elderly : data.poverty;
+            return { fillColor: getColor(value), weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.6 };
         }
 
         function getColor(d) {
             if (currentMode === 'elderly') {
-                return d > 6000 ? '#800026' : d > 5000 ? '#BD0026' : d > 4000 ? '#E31A1C' :
-                       d > 3000 ? '#FC4E2A' : d > 2000 ? '#FD8D3C' : d > 1000 ? '#FEB24C' : '#FFEDA0';
+                return d > 8000 ? '#800026' : d > 6000 ? '#BD0026' : d > 4000 ? '#E31A1C' : d > 2000 ? '#FC4E2A' : '#FFEDA0';
             } else {
-                return d > 2000 ? '#7f2704' : d > 1500 ? '#a63603' : d > 1000 ? '#d94801' :
-                       d > 700 ? '#f16913' : d > 400 ? '#fd8d3c' : d > 200 ? '#fdae6b' : '#feedde';
+                return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
             }
         }
 
         function onEachFeature(feature, layer) {
-            var fullName = feature.properties.adm_nm || feature.properties.name || "이름없음";
-            var dongName = fullName.split(" ").pop();
-            var data = dongData[dongName] || { elderly: 0, poverty: 0 };
-            
-            var content = `
-                <div style="text-align:center; font-family:'Pretendard';">
-                    <h3 style="margin:0 0 5px 0; color:#333;">${dongName}</h3>
-                    <div class="popup-row"><span>🔴 고령자:</span> <b>${data.elderly.toLocaleString()}명</b></div>
-                    <div class="popup-row"><span>🟠 수급자:</span> <b>${data.poverty.toLocaleString()}명</b></div>
-                </div>
-            `;
-            layer.bindPopup(content, { className: 'custom-popup' });
-            
+            var data = getDataByFeature(feature);
+            var shortName = (feature.properties.adm_nm || "").split(" ").pop();
+            layer.bindPopup(`<div style="text-align:center;"><b>${shortName}</b><br>🔴 고령자: ${data.elderly}명<br>🟠 수급자: ${data.poverty}명</div>`, { className: 'custom-popup' });
             layer.on({
-                mouseover: function(e) { e.target.setStyle({ weight: 3, color: '#333', fillOpacity: 0.9 }); },
-                mouseout: function(e) { geojsonLayer.resetStyle(e.target); }
+                mouseover: function(e) { e.target.setStyle({ weight: 3, color: '#333', fillOpacity: 0.8 }); e.target.openPopup(); },
+                mouseout: function(e) { geojsonLayer.resetStyle(e.target); e.target.closePopup(); },
+                click: function(e) { map.fitBounds(e.target.getBounds()); }
             });
         }
 
         function setMode(mode) {
             currentMode = mode;
-            var btns = document.querySelectorAll('.layer-btn');
-            btns[0].className = mode === 'elderly' ? 'layer-btn active' : 'layer-btn';
-            btns[1].className = mode === 'poverty' ? 'layer-btn active' : 'layer-btn';
+            document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.layer-btn.' + mode).classList.add('active');
             
             var bar = document.getElementById('legend-bar');
-            bar.style.background = mode === 'elderly' ? 
-                'linear-gradient(to right, #FFEDA0, #800026)' : 'linear-gradient(to right, #feedde, #7f2704)';
+            bar.style.background = mode === 'elderly' ? 'linear-gradient(to right, #FFEDA0, #800026)' : 'linear-gradient(to right, #feedde, #7f2704)';
             
             if(geojsonLayer) geojsonLayer.setStyle(styleFeature);
         }
 
         function toggleFullScreen() {
             var el = document.getElementById('map-wrapper');
-            if(!document.fullscreenElement) el.requestFullscreen();
-            else document.exitFullscreen();
+            if(!document.fullscreenElement) el.requestFullscreen(); else document.exitFullscreen();
         }
     </script>
 </body>
