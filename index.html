@@ -51,8 +51,8 @@
         <div class="info-box">
             <h2>🌞 스마트 쉼터 지도 (동별 분석)</h2>
             <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
-                📅 2026-01-01 기준 업데이트<br>
-                (고령자·수급자 데이터 탑재 완료)
+                📅 2026-01-01 기준<br>
+                (좌표 자동 보정 기능 탑재됨)
             </p>
 
             <div class="legend-box">
@@ -104,6 +104,22 @@
             "gwanak": [37.4784, 126.9516], "eunpyeong": [37.6027, 126.9291], 
             "jungnang": [37.6066, 127.0927], "songpa": [37.5145, 127.1066], "jongno": [37.5730, 126.9794]
         };
+        
+        // ★ 비상용 좌표 사전 (지오코딩 실패 시 사용)
+        const fallbackCoords = {
+            "강서구 가양1동": [37.5714, 126.8491], "강서구 공항동": [37.5552, 126.8170],
+            "강서구 등촌1동": [37.5544, 126.8617], "강서구 등촌2동": [37.5467, 126.8631],
+            "강서구 발산1동": [37.5539, 126.8354], "강서구 방화1동": [37.5731, 126.8174],
+            "강서구 염창동": [37.5501, 126.8744], "강서구 우장산동": [37.5516, 126.8437],
+            "관악구 낙성대동": [37.4764, 126.9635], "관악구 대학동": [37.4706, 126.9369],
+            "관악구 미성동": [37.4761, 126.9168], "관악구 보라매동": [37.4897, 126.9287],
+            "관악구 서원동": [37.4815, 126.9333], "관악구 신사동": [37.4866, 126.9190],
+            "관악구 조원동": [37.4831, 126.9069], "관악구 중앙동": [37.4801, 126.9511],
+            "노원구 공릉2동": [37.6253, 127.0907], "노원구 월계2동": [37.6322, 127.0514],
+            "노원구 중계1동": [37.6493, 127.0768], "은평구 녹번동": [37.6022, 126.9351],
+            "은평구 대조동": [37.6108, 126.9205], "은평구 수색동": [37.5855, 126.8957],
+            "은평구 신사1동": [37.5991, 126.9126], "중랑구 상봉1동": [37.5968, 127.0933]
+        };
 
         var map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.9780], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
@@ -114,19 +130,15 @@
         var povertyLayer = L.layerGroup();
 
         var allShelterData = [];
-        
-        // 데이터 경로 (쉼터 + 새로 만든 동별 데이터)
         var shelterUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
         var dongVulUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/dong_data_full.csv";
 
-        // 1. 쉼터 데이터 로딩
         Papa.parse(shelterUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
                 allShelterData = results.data;
                 renderShelters('all');
 
-                // 2. 동별 취약계층 데이터 로딩
                 Papa.parse(dongVulUrl, {
                     download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
                     complete: function(vulResults) {
@@ -160,25 +172,40 @@
             document.getElementById('status-msg').innerText = `총 ${count}곳 운영 중`;
         }
 
-        // ★ 동별 데이터 시각화 (좌표 있는 것만 표시)
+        // ★ [핵심] 좌표가 있으면 쓰고, 없으면 비상용 좌표(fallback)에서 찾아 쓰는 함수
         function prepareDongLayers(data) {
+            var filledCount = 0;
             data.forEach(function(row) {
-                if (row.lat && row.lng) {
-                    // 동 단위이므로 원 크기를 구 단위보다 작게 설정
+                var lat = row.lat;
+                var lng = row.lng;
+                var addressKey = row.region + " " + row.dong; // "강서구 가양1동"
+
+                // 1. CSV에 좌표가 비어있다면? -> 비상용 사전에서 찾기
+                if (!lat || !lng) {
+                    if (fallbackCoords[addressKey]) {
+                        lat = fallbackCoords[addressKey][0];
+                        lng = fallbackCoords[addressKey][1];
+                    }
+                }
+
+                // 2. 그래도 좌표가 있다면 지도에 표시
+                if (lat && lng) {
                     if (row.elderly) {
                         var radius1 = Math.sqrt(row.elderly) * 3.5; 
-                        L.circle([row.lat, row.lng], {
+                        L.circle([lat, lng], {
                             color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 0.3, weight: 1, radius: radius1
                         }).bindPopup(`<b>🚨 ${row.region} ${row.dong}</b><br>고령자: ${Number(row.elderly).toLocaleString()}명`).addTo(elderlyLayer);
                     }
                     if (row.poverty) {
                         var radius2 = Math.sqrt(row.poverty) * 6; 
-                        L.circle([row.lat, row.lng], {
+                        L.circle([lat, lng], {
                             color: '#d35400', fillColor: '#e67e22', fillOpacity: 0.4, weight: 1, radius: radius2
                         }).bindPopup(`<b>⚠️ ${row.region} ${row.dong}</b><br>수급자: ${Number(row.poverty).toLocaleString()}명`).addTo(povertyLayer);
                     }
+                    filledCount++;
                 }
             });
+            console.log("좌표 매칭 완료: " + filledCount + "개 동");
         }
 
         function toggleLayer(type, btn) {
