@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>지구본 - 스마트 복지 지도 (진단모드)</title>
+    <title>지구본 - 스마트 복지 지도</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
         #map-wrapper { position: relative; width: 100%; height: 100%; }
-        #map { width: 100%; height: 100%; background: #f0f0f0; } /* 로딩 전 회색 배경 */
+        #map { width: 100%; height: 100%; background: #f0f0f0; }
 
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
@@ -24,7 +24,6 @@
         .layer-btn.active { background: #2c3e50; color: white; }
         .fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; border: 0; width: 40px; height: 40px; border-radius: 8px; font-size: 20px; cursor: pointer; }
         
-        /* 범례 그라데이션 */
         .legend-bar { height: 10px; width: 100%; background: linear-gradient(to right, #feedde, #a63603); margin: 5px 0; }
     </style>
 </head>
@@ -42,7 +41,7 @@
             <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
                 <span>적음</span><span>많음</span>
             </div>
-            <p id="status" style="margin-top:10px; font-size:12px; color:blue;">시스템 점검 중...</p>
+            <p id="status" style="margin-top:10px; font-size:12px; color:blue;">지도 파일 로딩 중...</p>
         </div>
         <div id="map"></div>
     </div>
@@ -60,41 +59,31 @@
         var dongData = {};
         var currentMode = 'elderly';
 
-        // 1. CSV 데이터 로딩 확인
+        // 1. 데이터(CSV) 로딩
         var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong_data.csv";
         
-        document.getElementById('status').innerText = "1. 데이터 파일 다운로드 중...";
+        // 2. ★ 지도 모양(GeoJSON) 로딩 (선생님 저장소 주소로 변경됨!)
+        var geojsonUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/seoul_dong.geojson";
+
+        document.getElementById('status').innerText = "1. 인구 데이터 다운로드 중...";
 
         Papa.parse(csvUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
-                if (results.data.length === 0) {
-                    alert("⚠️ 오류: CSV 파일이 비어있거나 읽을 수 없습니다.");
-                    return;
-                }
-                
-                // 데이터 매핑
                 results.data.forEach(row => {
                     if (row.dong) dongData[row.dong] = row;
                 });
                 
-                document.getElementById('status').innerText = `2. 데이터 ${Object.keys(dongData).length}개 로딩 성공. 지도 그리는 중...`;
-                console.log("데이터 로딩 성공:", dongData);
-
-                // 2. 지도 모양(GeoJSON) 로딩
+                document.getElementById('status').innerText = "2. 지도 모양 파일 다운로드 중...";
                 loadGeoJSON();
             },
-            error: function(err) {
-                alert("⚠️ CSV 로딩 실패! 파일명(seoul_dong_data.csv)을 확인하세요.\n" + err);
-            }
+            error: function() { alert("CSV 데이터 로딩 실패"); }
         });
 
         function loadGeoJSON() {
-            var geojsonUrl = "https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_dong.geojson";
-            
             fetch(geojsonUrl)
                 .then(res => {
-                    if (!res.ok) throw new Error("지도 파일 서버 응답 없음");
+                    if (!res.ok) throw new Error("파일 없음 (404)");
                     return res.json();
                 })
                 .then(data => {
@@ -105,7 +94,8 @@
                     document.getElementById('status').innerText = "✅ 분석 완료 (2026.01.01 기준)";
                 })
                 .catch(err => {
-                    alert("⚠️ 지도 모양 파일(GeoJSON) 로딩 실패:\n" + err);
+                    alert("⚠️ 지도 모양 파일(seoul_dong.geojson)을 깃허브에 올리셨나요?\n에러 내용: " + err);
+                    document.getElementById('status').innerText = "❌ 지도 파일 없음";
                 });
         }
 
@@ -113,14 +103,11 @@
             var dongName = feature.properties.name;
             var data = dongData[dongName];
             var value = 0;
-            
-            if (data) {
-                value = (currentMode === 'elderly') ? data.elderly : data.poverty;
-            }
+            if (data) value = (currentMode === 'elderly') ? data.elderly : data.poverty;
 
             return {
                 fillColor: getColor(value),
-                weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.7
+                weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.75
             };
         }
 
@@ -137,10 +124,15 @@
         function onEachFeature(feature, layer) {
             var name = feature.properties.name;
             var data = dongData[name] || { elderly: 0, poverty: 0 };
-            layer.bindPopup(`<b>${name}</b><br>고령자: ${data.elderly}명<br>수급자: ${data.poverty}명`);
-            
+            layer.bindPopup(`
+                <div style="text-align:center;">
+                    <b>${name}</b><hr style="margin:5px 0;">
+                    🔴 고령자: ${data.elderly.toLocaleString()}명<br>
+                    🟠 수급자: ${data.poverty.toLocaleString()}명
+                </div>
+            `);
             layer.on({
-                mouseover: function(e) { e.target.setStyle({ weight: 3, color: '#666', fillOpacity: 0.9 }); },
+                mouseover: function(e) { e.target.setStyle({ weight: 3, color: '#333', fillOpacity: 0.9 }); },
                 mouseout: function(e) { geojsonLayer.resetStyle(e.target); }
             });
         }
