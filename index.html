@@ -10,63 +10,60 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; }
+        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
         #map { width: 100%; height: 100%; }
         
-        /* 정보 박스 스타일 */
+        /* 정보 박스 */
         .info-box {
             position: absolute; top: 10px; left: 60px; z-index: 1000;
             background: white; padding: 20px; border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            text-align: center; min-width: 220px;
+            text-align: center; min-width: 240px;
         }
         h2 { margin: 0 0 5px 0; font-size: 18px; color: #2c3e50; font-weight: 800; }
         .date-text { margin: 0 0 15px 0; font-size: 12px; color: #888; }
         
-        /* 범례 스타일 */
-        .legend-box {
-            background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;
-            font-size: 12px; text-align: left;
+        /* ★ 필터 버튼 그룹 스타일 */
+        .filter-group { display: flex; gap: 5px; justify-content: center; margin-bottom: 15px; }
+        .filter-btn {
+            background: #f1f3f5; border: 1px solid #dee2e6; color: #495057;
+            padding: 6px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
         }
-        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        
-        /* ★ 내 위치 찾기 버튼 스타일 */
+        .filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
+        .filter-btn:hover { background: #e9ecef; }
+
+        /* 내 위치 버튼 */
         .gps-btn {
-            background: #2c3e50; color: white; border: none;
-            padding: 10px 20px; border-radius: 30px;
+            background: #3498db; color: white; border: none;
+            padding: 12px; border-radius: 12px;
             font-size: 14px; font-weight: bold; cursor: pointer;
-            width: 100%; transition: background 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
         }
-        .gps-btn:hover { background: #1a252f; }
-        .gps-btn:active { transform: scale(0.98); }
+        .gps-btn:hover { background: #2980b9; }
+
+        /* 상태 메시지 */
+        #status-msg { margin: 10px 0 0 0; font-size: 13px; font-weight: 600; color: #333; }
     </style>
 </head>
 <body>
 
     <div class="info-box">
-        <h2>🌞 서울시 무더위 쉼터</h2>
+        <h2>🌞 스마트 쉼터 지도</h2>
         <p class="date-text">(2025-12-30 기준)</p>
         
-        <div class="legend-box">
-            <div class="legend-item">
-                <span class="dot" style="background:#2ecc71;"></span> 
-                <span>🟢 쉼터 (운영 중)</span>
-            </div>
-            <div class="legend-item">
-                <span class="dot" style="background:rgba(52, 152, 219, 0.4);"></span> 
-                <span>🔵 반경 500m (접근성)</span>
-            </div>
+        <div class="filter-group">
+            <button class="filter-btn active" onclick="filterData('all', this)">전체</button>
+            <button class="filter-btn" onclick="filterData('senior', this)">👴 경로당</button>
+            <button class="filter-btn" onclick="filterData('public', this)">🏢 누구나</button>
         </div>
 
-        <p id="status-msg" style="margin:0 0 15px 0; font-size:13px; font-weight:600; color:#333;">
-            데이터 분석 중...
-        </p>
-
         <button class="gps-btn" onclick="findMyLocation()">
-            📍 내 주변 쉼터 찾기
+            📍 내 주변 찾기
         </button>
+
+        <p id="status-msg">데이터 분석 중...</p>
     </div>
 
     <div id="map"></div>
@@ -76,94 +73,95 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 1. 지도 생성 (서울 확대)
         var map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.9780], 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
         var markers = L.markerClusterGroup();
         var circles = L.layerGroup();
-        var userMarker = null; // 내 위치 마커를 담을 변수
+        var userMarker = null;
+        
+        // ★ 데이터를 저장해둘 변수 (필터링할 때 계속 쓰려고)
+        var allShelterData = [];
 
-        // 2. 데이터 불러오기
+        // 데이터 불러오기
         var csvUrl = "https://raw.githubusercontent.com/Zigubon/shelter-map/refs/heads/main/shelter_data.csv";
 
         Papa.parse(csvUrl, {
             download: true, header: true, dynamicTyping: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(results) {
-                var data = results.data;
-                var count = 0;
-                
-                data.forEach(function(row) {
-                    var lat = row['위도'] || row['WGS84위도'];
-                    var lng = row['경도'] || row['WGS84경도'];
-                    var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
-                    var address = row['도로명주소'] || "";
+                allShelterData = results.data; // 데이터를 전역 변수에 저장
+                renderMap('all'); // 처음에 다 보여주기
+            },
+            error: function() { alert("데이터 로딩 실패"); }
+        });
 
-                    if (lat && lng) {
-                        // 쉼터 마커 (초록색 테마)
-                        var marker = L.marker([lat, lng])
-                                      .bindPopup(`<b>${name}</b><br>${address}`);
+        // ★ 지도에 핀을 찍는 함수 (필터링 로직 포함)
+        function renderMap(category) {
+            markers.clearLayers(); // 기존 핀 싹 지우기
+            circles.clearLayers(); // 기존 원 싹 지우기
+            var count = 0;
+
+            allShelterData.forEach(function(row) {
+                var lat = row['위도'] || row['WGS84위도'];
+                var lng = row['경도'] || row['WGS84경도'];
+                var name = row['쉼터명칭'] || row['쉼터명'] || "이름없음";
+                var address = row['도로명주소'] || "";
+
+                if (lat && lng) {
+                    // 필터링 조건 검사
+                    var isSenior = name.includes("경로당") || name.includes("노인");
+                    var show = false;
+
+                    if (category === 'all') show = true;
+                    else if (category === 'senior' && isSenior) show = true;
+                    else if (category === 'public' && !isSenior) show = true; // 경로당 아닌 곳(주민센터, 은행 등)
+
+                    if (show) {
+                        var marker = L.marker([lat, lng]).bindPopup(`<b>${name}</b><br>${address}`);
                         markers.addLayer(marker);
                         
-                        // 반경 500m 원
+                        // 원 그리기 (투명도는 개수에 따라 조절)
                         L.circle([lat, lng], {
                             color: 'transparent', fillColor: '#3498db', fillOpacity: 0.08, radius: 500
                         }).addTo(circles);
                         count++;
                     }
-                });
-
-                circles.addTo(map);
-                map.addLayer(markers);
-                
-                if (count > 0) document.getElementById('status-msg').innerText = `총 ${count}곳 운영 중`;
-            },
-            error: function() { alert("데이터 로딩 실패"); }
-        });
-
-        // ★ 3. 내 위치 찾기 기능 함수
-        function findMyLocation() {
-            if (!navigator.geolocation) {
-                alert("이 브라우저는 위치 정보를 지원하지 않습니다.");
-                return;
-            }
-
-            // 버튼 텍스트 변경 (로딩 중 느낌)
-            var btn = document.querySelector('.gps-btn');
-            var originalText = btn.innerHTML;
-            btn.innerHTML = "📡 위치 탐색 중...";
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    var lat = position.coords.latitude;
-                    var lng = position.coords.longitude;
-
-                    // 1) 지도를 내 위치로 이동 (부드럽게 날아가기)
-                    map.flyTo([lat, lng], 16);
-
-                    // 2) 기존 내 위치 마커가 있다면 지움
-                    if (userMarker) map.removeLayer(userMarker);
-
-                    // 3) 내 위치에 '빨간색 원' 표시
-                    userMarker = L.circleMarker([lat, lng], {
-                        radius: 10,
-                        fillColor: "#ff4757", // 빨간색
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 1
-                    }).addTo(map).bindPopup("<b>🚩 현재 계신 곳</b>").openPopup();
-
-                    // 버튼 텍스트 원상복구
-                    btn.innerHTML = originalText;
-                },
-                function() {
-                    alert("위치 정보를 가져올 수 없습니다.\n브라우저의 위치 권한을 허용해주세요.");
-                    btn.innerHTML = originalText;
                 }
+            });
+
+            circles.addTo(map);
+            map.addLayer(markers);
+            document.getElementById('status-msg').innerText = `총 ${count}곳 표시 중`;
+        }
+
+        // 버튼 클릭 시 작동하는 함수
+        function filterData(category, btnElement) {
+            // 버튼 색깔 바꾸기
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            
+            // 지도 다시 그리기
+            renderMap(category);
+        }
+
+        // 내 위치 찾기
+        function findMyLocation() {
+            if (!navigator.geolocation) { alert("위치 기능 미지원"); return; }
+            var btn = document.querySelector('.gps-btn');
+            btn.innerHTML = "📡 탐색 중...";
+            
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    var lat = pos.coords.latitude;
+                    var lng = pos.coords.longitude;
+                    map.flyTo([lat, lng], 16);
+                    if (userMarker) map.removeLayer(userMarker);
+                    userMarker = L.circleMarker([lat, lng], {
+                        radius: 10, fillColor: "#ff4757", color: "#fff", weight: 2, fillOpacity: 1
+                    }).addTo(map).bindPopup("<b>🚩 현재 내 위치</b>").openPopup();
+                    btn.innerHTML = "📍 내 주변 찾기";
+                },
+                function() { alert("위치 권한을 확인해주세요."); btn.innerHTML = "📍 내 주변 찾기"; }
             );
         }
     </script>
