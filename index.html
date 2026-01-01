@@ -21,31 +21,31 @@
         /* 2. 전체 레이아웃 (상하 분할) */
         .dashboard-container {
             display: flex;
-            flex-direction: column; /* 위에서 아래로 배치 */
+            flex-direction: column; /* 위에서 아래로 */
             height: 100vh;
         }
 
         /* 3. 상단 헤더 & 컨트롤 패널 */
         .top-panel {
             background: white;
-            padding: 15px 20px;
+            padding: 12px 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             z-index: 2000;
             display: flex;
-            flex-wrap: wrap; /* 화면 좁으면 줄바꿈 */
+            flex-wrap: wrap; 
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             border-bottom: 1px solid #e1e4e8;
         }
 
         .header-title {
-            font-size: 20px; font-weight: 800; color: #2c3e50; margin-right: auto; white-space: nowrap;
+            font-size: 18px; font-weight: 800; color: #2c3e50; margin-right: auto; white-space: nowrap;
         }
 
-        /* 컨트롤 그룹 (가로 배치용) */
+        /* 컨트롤 그룹 */
         .control-group {
-            display: flex; align-items: center; gap: 10px;
-            background: #f8f9fa; padding: 5px 10px; border-radius: 8px; border: 1px solid #eee;
+            display: flex; align-items: center; gap: 8px;
+            background: #f8f9fa; padding: 4px 8px; border-radius: 8px; border: 1px solid #eee;
         }
         .group-label { font-size: 11px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-right: 5px; }
 
@@ -55,7 +55,7 @@
             background: white; font-size: 12px; font-weight: 700; color: #555;
             cursor: pointer; transition: all 0.2s;
         }
-        .btn:hover { background: #eee; }
+        .btn:hover { background: #eee; transform: translateY(-1px); }
         .btn.active { color: white !important; border-color: transparent; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         /* 색상 테마 */
@@ -67,21 +67,26 @@
 
         /* 4. 하단 지도 영역 */
         .map-wrapper {
-            flex-grow: 1; /* 남은 공간 모두 차지 */
+            flex-grow: 1; /* 남은 공간 꽉 채우기 */
             position: relative;
             background: #eee;
         }
         #map { width: 100%; height: 100%; }
 
-        /* 범례 (지도 위에 띄움) */
+        /* 범례 (지도 위 오버레이) */
         .legend-overlay {
-            position: absolute; bottom: 25px; left: 20px; z-index: 1000;
-            background: rgba(255,255,255,0.9); padding: 12px; border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 11px;
-            backdrop-filter: blur(5px);
+            position: absolute; bottom: 30px; left: 20px; z-index: 1000;
+            background: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-size: 11px;
+            backdrop-filter: blur(5px); min-width: 150px;
+        }
+
+        /* 진단 배지 (오른쪽 위) */
+        .debug-badge {
+            font-size: 11px; font-weight: bold; color: #fff; background: #95a5a6;
+            padding: 4px 8px; border-radius: 4px;
         }
         
-        /* 전체화면 버튼 */
         .fullscreen-btn {
             position: absolute; top: 15px; right: 15px; z-index: 1000;
             background: white; border: 0; width: 40px; height: 40px;
@@ -89,10 +94,10 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
-        /* 반응형 (모바일) */
-        @media (max-width: 768px) {
+        /* 모바일 대응 */
+        @media (max-width: 800px) {
             .top-panel { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px; }
-            .header-title { text-align: center; margin-bottom: 5px; }
+            .header-title { text-align: center; }
             .control-group { justify-content: space-between; }
         }
     </style>
@@ -121,16 +126,13 @@
             <button class="btn filter-btn" onclick="filterShelter('public', this)">공공</button>
         </div>
 
-        <div id="status-msg" style="font-size:11px; color:#666; font-weight:bold; margin-left:auto;">
-            시스템 대기 중...
-        </div>
+        <div id="data-status" class="debug-badge">데이터 로딩 중...</div>
     </div>
 
     <div class="map-wrapper" id="map-wrapper">
         <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
         
-        <div class="legend-overlay" id="dynamic-legend">
-            </div>
+        <div class="legend-overlay" id="dynamic-legend"></div>
 
         <div id="map"></div>
     </div>
@@ -142,7 +144,7 @@
 
 <script>
     // ==========================================
-    // 🔑 [중요] Decoding 인증키 입력
+    // 🔑 [중요] Decoding 인증키
     const API_KEY = "8ad84e9f4adff341e01676520be9f7171b7cfeafaaea9fc8ab7165f0f32e415e"; 
     // ==========================================
 
@@ -156,12 +158,11 @@
     
     let dongData = {}, shelterData = [], currentMode = 'elderly', isWeatherOn = false;
 
-    // 데이터 URL (main 브랜치)
-    const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/seoul_dong_data.csv";
-    const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/seoul_dong.geojson";
-    const URL_SHELTER = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/shelter_data.csv";
+    // ★★★ [중요] 주소를 'master'로 다시 변경했습니다 ★★★
+    const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong_data.csv";
+    const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong.geojson";
+    const URL_SHELTER = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/shelter_data.csv";
 
-    // 기상 관측 지점
     const weatherPoints = [
         { name: "종로(도심)", lat: 37.5730, lng: 126.9794 }, { name: "강남", lat: 37.5172, lng: 127.0473 },
         { name: "노원", lat: 37.6542, lng: 127.0568 }, { name: "은평", lat: 37.6027, lng: 126.9291 },
@@ -170,24 +171,34 @@
     ];
 
     function init() {
-        updateStatus("데이터 로딩 중...");
+        updateDebug("CSV 다운로드 중...");
         Papa.parse(URL_DONG, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
+                if(res.data.length === 0) {
+                    updateDebug("❌ CSV 데이터 없음");
+                    alert("오류: 데이터 파일이 비어있거나 주소(master/main)가 틀렸습니다.");
+                    return;
+                }
                 res.data.forEach(row => { if(row.full_name) dongData[normalizeName(row.full_name)] = row; });
+                updateDebug(`데이터 ${Object.keys(dongData).length}개 로딩`);
                 loadGeoJSON();
             },
-            error: () => updateStatus("CSV 로딩 실패")
+            error: () => updateDebug("❌ CSV 실패 (주소확인)")
         });
     }
 
     function loadGeoJSON() {
         fetch(URL_GEOJSON)
-            .then(res => res.json())
+            .then(res => {
+                if(!res.ok) throw new Error("404");
+                return res.json();
+            })
             .then(data => {
                 geojsonLayer = L.geoJson(data, { style: styleFeature, onEachFeature: onEachFeature }).addTo(map);
                 loadShelters();
-            });
+            })
+            .catch(() => updateDebug("❌ 지도모양 실패 (주소확인)"));
     }
 
     function loadShelters() {
@@ -197,35 +208,32 @@
                 shelterData = res.data;
                 renderShelters('all');
                 setMode('elderly');
-                updateStatus("✅ 모니터링 준비 완료");
+                updateDebug("✅ 모든 데이터 정상");
+                setTimeout(() => document.getElementById('data-status').style.display='none', 5000);
             }
         });
     }
 
+    // --- 기능 로직 ---
+
     function toggleWeather() {
         const btn = document.getElementById('btn-weather');
         if (!isWeatherOn) {
-            if (API_KEY.includes("인증키")) { alert("API 키를 입력하세요!"); return; }
-            isWeatherOn = true;
-            btn.classList.add('active');
-            btn.innerText = "📡 수신 중 (ON)";
+            if (API_KEY.includes("인증키")) { alert("API 키 입력 필요"); return; }
+            isWeatherOn = true; btn.classList.add('active'); btn.innerText = "📡 수신 중...";
             fetchRealTimeWeather();
         } else {
-            isWeatherOn = false;
-            btn.classList.remove('active');
-            btn.innerText = "📡 실시간 기온 (OFF)";
+            isWeatherOn = false; btn.classList.remove('active'); btn.innerText = "📡 실시간 기온 (OFF)";
             weatherGroup.clearLayers();
         }
     }
 
     function fetchRealTimeWeather() {
-        updateStatus("기상청 데이터 요청 중...");
-        const now = new Date();
-        now.setHours(now.getHours() - 1);
+        const now = new Date(); now.setHours(now.getHours() - 1);
         const baseDate = now.toISOString().slice(0,10).replace(/-/g,"");
         const baseTime = String(now.getHours()).padStart(2,'0') + "00";
-
         let loaded = 0;
+
         weatherPoints.forEach(pt => {
             const grid = dfs_xy_conv("toXY", pt.lat, pt.lng);
             const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${grid.x}&ny=${grid.y}`;
@@ -235,7 +243,7 @@
                 if(item) drawWeatherMarker(pt, parseFloat(item.obsrValue));
             }).finally(() => {
                 loaded++;
-                if(loaded === weatherPoints.length) updateStatus(`✅ ${baseTime.substr(0,2)}시 기온 업데이트 완료`);
+                if(loaded === weatherPoints.length) document.getElementById('btn-weather').innerText = "📡 수신 완료 (ON)";
             });
         });
     }
@@ -251,8 +259,14 @@
 
     function styleFeature(feature) {
         var data = getData(feature);
+        // 데이터가 없으면 투명하게 처리하지 않고 회색으로 표시 (디버깅용)
+        var hasData = data.elderly > 0 || data.poverty > 0;
         var val = currentMode === 'elderly' ? data.elderly : data.poverty;
-        return { fillColor: getColor(val), weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.7 };
+        return { 
+            fillColor: hasData ? getColor(val) : '#ccc', 
+            weight: 1, opacity: 1, color: 'white', dashArray: '3', 
+            fillOpacity: hasData ? 0.7 : 0.3 
+        };
     }
 
     function getColor(d) {
@@ -281,7 +295,7 @@
     function setMode(mode) {
         currentMode = mode;
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`.mode-btn.${mode}`).classList.add('active');
+        document.querySelector('.mode-btn.' + mode).classList.add('active');
         updateLegend();
         if(geojsonLayer) geojsonLayer.setStyle(styleFeature);
     }
@@ -292,25 +306,42 @@
             : { g: [2500,2000,1500,1000,0], c: ['#7f2704','#a63603','#d94801','#f16913','#feedde'], t: "수급자 인구" };
         let html = `<b>${conf.t} (명)</b><br>`;
         conf.g.forEach((v, i) => {
-            html += `<i style="background:${conf.c[i]}; width:10px; height:10px; display:inline-block; margin-right:5px;"></i>${v}+<br>`;
+            html += `<i style="background:${conf.c[i]}; width:10px; height:10px; display:inline-block; margin-right:5px; border:1px solid #ccc;"></i>${v}+<br>`;
         });
-        html += `<hr style="margin:5px 0;"><i style="background:rgba(52,152,219,0.5); width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px;"></i>반경 300m`;
+        html += `<hr style="margin:5px 0;"><i style="background:rgba(52,152,219,0.5); width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px; border:1px solid #3498db;"></i>반경 300m`;
         document.getElementById('dynamic-legend').innerHTML = html;
     }
 
     function onEachFeature(f, l) {
         var d = getData(f);
-        l.bindPopup(`<center><b>${f.properties.adm_nm.split(" ").pop()}</b><hr>고령: ${d.elderly}<br>수급: ${d.poverty}</center>`);
+        l.bindPopup(`<center><b>${f.properties.adm_nm.split(" ").pop()}</b><hr>고령: ${d.elderly.toLocaleString()}명<br>수급: ${d.poverty.toLocaleString()}명</center>`);
         l.on({ mouseover: e => { e.target.setStyle({weight:3,color:'#333'}); e.target.openPopup(); }, mouseout: e => { geojsonLayer.resetStyle(e.target); e.target.closePopup(); } });
     }
 
     function getData(f) {
-        let name = normalizeName(f.properties.adm_nm);
-        return dongData[name] || { elderly: 0, poverty: 0 };
+        // 이름 정규화 및 매칭 로직
+        var rawName = f.properties.adm_nm || f.properties.name || "";
+        var key = normalizeName(rawName); // "서울특별시종로구사직동"
+        var simpleKey = normalizeName(rawName.split(" ").slice(1).join("")); // "종로구사직동" (CSV와 일치 예상)
+        
+        // 예외 처리
+        const mapTable = { "강남구일원2동": "강남구개포3동", "강동구상일동": "강동구상일1동" };
+        var shortKey = normalizeName(f.properties.sggnm + f.properties.adm_nm.split(" ").pop());
+
+        if (dongData[key]) return dongData[key];
+        if (dongData[simpleKey]) return dongData[simpleKey];
+        if (mapTable[shortKey] && dongData[normalizeName(mapTable[shortKey])]) return dongData[normalizeName(mapTable[shortKey])];
+
+        return { elderly: 0, poverty: 0 };
     }
     
     function normalizeName(n) { return n ? n.replace(/·/g, ".").replace(/\s+/g, "").trim() : ""; }
-    function updateStatus(m) { document.getElementById('status-msg').innerText = m; }
+    function updateDebug(m) { 
+        var el = document.getElementById('data-status');
+        el.innerText = m;
+        if(m.includes("❌")) el.style.background = "#e74c3c"; // 에러면 빨간색
+        else el.style.background = "#2e7d32"; // 성공이면 초록색
+    }
     function toggleFullScreen() { var el=document.getElementById('map-wrapper'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }
 
     function dfs_xy_conv(code, v1, v2) {
