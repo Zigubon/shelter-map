@@ -10,111 +10,154 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; background: #fff; }
+        /* 1. 기본 설정 */
+        html, body { 
+            height: 100%; margin: 0; padding: 0; 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; 
+            background: #f0f2f5; 
+            color: #333;
+        }
         
-        /* 지도 전체 컨테이너 */
-        #map-wrapper { 
-            position: relative; width: 100%; height: 85vh; /* 지도 높이 설정 */
-            overflow: hidden; 
-            background: #f8f9fa;
+        /* 2. 대시보드 레이아웃 (좌우 분할) */
+        .dashboard-container {
+            display: flex;
+            height: 100vh; /* 화면 전체 높이 사용 */
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px; /* 패널과 지도 사이 간격 */
+        }
+
+        /* 3. 왼쪽 사이드바 (컨트롤 패널) */
+        .sidebar {
+            width: 300px; /* 너비 고정 */
+            flex-shrink: 0;
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow-y: auto; /* 내용 넘치면 스크롤 */
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #e1e4e8;
+        }
+
+        /* 4. 오른쪽 지도 영역 */
+        .map-wrapper {
+            flex-grow: 1; /* 남은 공간 모두 차지 */
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: #e9ecef;
+            border: 1px solid #e1e4e8;
         }
         #map { width: 100%; height: 100%; }
 
-        /* 컨트롤 패널 (지도 위) */
-        .control-panel {
-            position: absolute; top: 20px; left: 20px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px; border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            width: 260px; backdrop-filter: blur(10px);
-            max-height: 90vh; overflow-y: auto;
-        }
-        
-        h2 { margin: 0 0 15px 0; font-size: 18px; color: #1a1a1a; font-weight: 800; letter-spacing: -0.5px; }
-        .panel-section { margin-bottom: 20px; }
-        .section-label { font-size: 12px; font-weight: 700; color: #666; margin-bottom: 8px; display: block; text-transform: uppercase; }
+        /* 타이틀 & 섹션 스타일 */
+        h2 { margin: 0 0 20px 0; font-size: 20px; color: #1a1a1a; font-weight: 800; letter-spacing: -0.5px; line-height: 1.3; }
+        .panel-section { margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .panel-section:last-child { border-bottom: none; margin-bottom: 0; }
+        .section-label { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 10px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* 버튼 스타일 수정 */
-        .btn-group { display: flex; gap: 6px; }
+        /* 버튼 스타일 */
+        .btn-group { display: flex; gap: 8px; }
         .btn {
-            flex: 1; padding: 10px 0; border: 1px solid #e1e4e8; border-radius: 8px;
-            background: white; font-size: 12px; font-weight: 700; color: #555;
+            flex: 1; padding: 12px 0; border: 1px solid #e1e4e8; border-radius: 8px;
+            background: white; font-size: 13px; font-weight: 700; color: #666;
             cursor: pointer; transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
         }
-        .btn:hover { background: #f1f3f5; }
+        .btn:hover { background: #f8f9fa; transform: translateY(-2px); }
         
-        /* ★ 활성화된 버튼 스타일 (글자색 흰색 강제) */
-        .btn.active { color: white !important; border-color: transparent; }
+        /* 활성화된 버튼 (흰색 글씨 강제) */
+        .btn.active { color: white !important; border-color: transparent; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
         
-        /* 모드별 배경색 */
-        .btn.active.elderly { background: #e74c3c !important; } /* 빨강 */
-        .btn.active.poverty { background: #e67e22 !important; } /* 주황 */
-        
-        /* 쉼터 필터 버튼 색상 (진한 남색) */
+        /* 모드별 색상 */
+        .btn.active.elderly { background: linear-gradient(135deg, #ff6b6b, #ee5253) !important; }
+        .btn.active.poverty { background: linear-gradient(135deg, #feca57, #ff9f43) !important; }
         .btn.active.filter-btn { background: #2c3e50 !important; } 
-        
-        /* 기상 버튼 */
         .btn.weather { width: 100%; margin-bottom: 5px; }
-        .btn.active.weather { background: #3498db !important; }
+        .btn.active.weather { background: linear-gradient(135deg, #48dbfb, #0abde3) !important; }
 
-        /* 범례 */
-        .legend-box { background: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 11px; }
+        /* 범례 박스 */
+        .legend-box { background: #f8f9fa; padding: 15px; border-radius: 10px; font-size: 12px; border: 1px solid #eee; }
 
-        .fullscreen-btn { position: absolute; top: 20px; right: 20px; z-index: 1000; background: white; border: 0; width: 44px; height: 44px; border-radius: 12px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .fullscreen-btn:hover { transform: scale(1.05); }
-
+        /* 상태 배지 */
         .status-badge {
-            display: inline-block; padding: 4px 8px; border-radius: 4px;
-            font-size: 11px; font-weight: bold; margin-top: 10px;
-            background: #e8f5e9; color: #2e7d32;
+            margin-top: auto; /* 사이드바 맨 아래로 밀기 */
+            padding: 10px; border-radius: 8px;
+            font-size: 12px; font-weight: bold; text-align: center;
+            background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;
+        }
+
+        /* 전체화면 버튼 */
+        .fullscreen-btn { 
+            position: absolute; top: 20px; right: 20px; z-index: 1000; 
+            background: white; border: 0; width: 44px; height: 44px; 
+            border-radius: 12px; font-size: 20px; cursor: pointer; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            transition: transform 0.2s;
+        }
+        .fullscreen-btn:hover { transform: scale(1.1); }
+
+        /* ★ 모바일 반응형 (화면 좁을 때 세로 배치) */
+        @media (max-width: 900px) {
+            .dashboard-container { flex-direction: column; height: auto; padding: 10px; }
+            .sidebar { width: 100%; height: auto; margin-bottom: 20px; }
+            .map-wrapper { height: 60vh; }
         }
     </style>
 </head>
 <body>
 
-    <div id="map-wrapper">
-        <button class="fullscreen-btn" onclick="toggleFullScreen()" title="전체화면">⛶</button>
+<div class="dashboard-container">
+    
+    <div class="sidebar">
+        <h2>서울시 기후위기<br>통합 관제 시스템</h2>
         
-        <div class="control-panel">
-            <h2>서울시 기후위기 관제</h2>
-            
-            <div class="panel-section">
-                <span class="section-label">🌡️ 실시간 기상 관제</span>
-                <button class="btn weather" id="btn-weather" onclick="toggleWeather()">
-                    📡 실시간 기온 수신 (OFF)
-                </button>
-                <div id="weather-status" style="font-size:11px; color:#888; display:none; margin-top:5px;">
-                    API 연결 시도 중...
-                </div>
+        <div class="panel-section">
+            <span class="section-label">🌡️ 실시간 기상 모니터링</span>
+            <button class="btn weather" id="btn-weather" onclick="toggleWeather()">
+                📡 실시간 기온 수신 (OFF)
+            </button>
+            <div id="weather-status" style="font-size:11px; color:#888; display:none; margin-top:8px; text-align:center;">
+                API 연결 시도 중...
             </div>
-
-            <div class="panel-section">
-                <span class="section-label">📊 인구 밀집도 분석</span>
-                <div class="btn-group">
-                    <button class="btn mode-btn active elderly" onclick="setMode('elderly')">🔴 고령자</button>
-                    <button class="btn mode-btn poverty" onclick="setMode('poverty')">🟠 취약계층</button>
-                </div>
-                <div class="legend-box" id="dynamic-legend" style="margin-top:10px;"></div>
-            </div>
-
-            <div class="panel-section">
-                <span class="section-label">⛱️ 무더위 쉼터 필터</span>
-                <div class="btn-group">
-                    <button class="btn filter-btn active" onclick="filterShelter('all', this)">전체</button>
-                    <button class="btn filter-btn" onclick="filterShelter('senior', this)">경로당</button>
-                    <button class="btn filter-btn" onclick="filterShelter('public', this)">공공시설</button>
-                </div>
-                <div style="font-size:11px; color:#666; margin-top:8px; display:flex; align-items:center;">
-                    <span style="width:10px; height:10px; background:rgba(52,152,219,0.2); border:1px solid #3498db; border-radius:50%; margin-right:5px; display:inline-block;"></span>
-                    접근성 보호 반경 (300m)
-                </div>
-            </div>
-            
-            <div class="status-badge" id="system-status">시스템 대기 중...</div>
         </div>
 
+        <div class="panel-section">
+            <span class="section-label">📊 취약계층 밀집도 (Choropleth)</span>
+            <div class="btn-group">
+                <button class="btn mode-btn active elderly" onclick="setMode('elderly')">🔴 고령자</button>
+                <button class="btn mode-btn poverty" onclick="setMode('poverty')">🟠 취약계층</button>
+            </div>
+            <div class="legend-box" id="dynamic-legend" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="panel-section">
+            <span class="section-label">⛱️ 대응 자원 (무더위 쉼터)</span>
+            <div class="btn-group">
+                <button class="btn filter-btn active" onclick="filterShelter('all', this)">전체</button>
+                <button class="btn filter-btn" onclick="filterShelter('senior', this)">경로당</button>
+                <button class="btn filter-btn" onclick="filterShelter('public', this)">공공시설</button>
+            </div>
+            <div style="font-size:11px; color:#666; margin-top:12px; display:flex; align-items:center; background:#f8f9fa; padding:8px; border-radius:6px;">
+                <span style="width:12px; height:12px; background:rgba(52,152,219,0.2); border:1px solid #3498db; border-radius:50%; margin-right:8px; display:inline-block;"></span>
+                <b>접근성 보호 반경 (300m)</b>
+            </div>
+        </div>
+
+        <div class="status-badge" id="system-status">시스템 대기 중...</div>
+    </div>
+
+    <div class="map-wrapper" id="map-wrapper">
+        <button class="fullscreen-btn" onclick="toggleFullScreen()" title="전체화면 모드">⛶</button>
         <div id="map"></div>
     </div>
+
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
@@ -142,7 +185,7 @@
     let currentMode = 'elderly';
     let isWeatherOn = false;
 
-    // ★ 데이터 URL 수정됨 (refs/heads/ 제거)
+    // 데이터 URL (refs/heads/ 제거된 올바른 주소)
     const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/seoul_dong_data.csv";
     const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/seoul_dong.geojson";
     const URL_SHELTER = "https://raw.githubusercontent.com/Zigubon/shelter-map/main/shelter_data.csv";
@@ -221,14 +264,14 @@
 
     function fetchRealTimeWeather() {
         const now = new Date();
-        now.setHours(now.getHours() - 1); // 1시간 전 데이터 (안정성)
+        now.setHours(now.getHours() - 1); 
         const baseDate = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
         const baseTime = String(now.getHours()).padStart(2,'0') + "00";
 
         let loadedCount = 0;
         weatherPoints.forEach(point => {
             const grid = dfs_xy_conv("toXY", point.lat, point.lng);
-            // https 프록시 대신 직접 호출 (로컬 테스트용)
+            // https 호출
             const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${grid.x}&ny=${grid.y}`;
 
             fetch(url)
