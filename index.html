@@ -149,7 +149,7 @@
     
     let dongData = {}, shelterData = [], currentMode = 'elderly', isWeatherOn = false;
 
-    // ★ 파일 URL (기후동행 CSV 인코딩 주의)
+    // ★ 파일 URL (climate_shelter.csv 인코딩 문제 해결)
     const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong_data.csv";
     const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong.geojson";
     const URL_SHELTER_OLD = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/shelter_data.csv";
@@ -200,15 +200,17 @@
 
     function loadClimateShelters() {
         updateDebug("기후동행 쉼터 추가 중...");
+        // ★ 수정됨: 인코딩 옵션을 제거하여 자동 감지(보통 UTF-8) 유도
         Papa.parse(URL_SHELTER_NEW, {
             download: true, header: true, skipEmptyLines: true, 
-            encoding: "CP949", // ★ 한글 인코딩 문제 해결용
             transformHeader: function(h) { return h.trim(); }, // 헤더 공백 제거
             complete: function(res) {
+                let count = 0;
                 if(res.data.length === 0) {
                      updateDebug("⚠️ 기후동행 파일 내용 없음");
                 } else {
                     res.data.forEach(row => {
+                        // X좌표, Y좌표 컬럼명이 정확한지 확인
                         if (row['X좌표'] && row['Y좌표'] && !isNaN(row['X좌표'])) {
                             try {
                                 var p = proj4("EPSG:5186", "EPSG:4326", [parseFloat(row['X좌표']), parseFloat(row['Y좌표'])]);
@@ -218,6 +220,7 @@
                                     'type': 'climate',
                                     'desc': row['쉼터_구분'] || "민간협력"
                                 });
+                                count++;
                             } catch(e) { console.log("좌표변환 에러", e); }
                         }
                     });
@@ -225,8 +228,15 @@
                 
                 renderShelters('all');
                 setMode('elderly');
-                updateDebug("✅ 통합 시스템 가동");
-                setTimeout(() => document.getElementById('data-status').style.display='none', 5000);
+                
+                if(count > 0) {
+                    updateDebug(`✅ 기후동행 ${count}개 로딩 완료`);
+                    setTimeout(() => document.getElementById('data-status').style.display='none', 5000);
+                } else {
+                    updateDebug("⚠️ 기후동행 로딩 0개 (파일 인코딩 확인 필요)");
+                    // 데이터가 0개면 CSV가 깨진 것일 수 있으므로 확인용 콘솔 출력
+                    console.log("기후동행 데이터 샘플:", res.data[0]);
+                }
             },
             error: (err) => {
                 console.error(err);
@@ -275,7 +285,7 @@
         else if (temp >= 30) { color = '#f39c12'; label = '더위'; }
         else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
 
-        // ★ 커스텀 HTML 마커 (캡슐형)
+        // ★ 커스텀 HTML 마커 (캡슐형 - 겹침 방지)
         const html = `
             <div class="weather-pin-container">
                 <div class="weather-val" style="background:${color}">${temp}°</div>
@@ -283,7 +293,7 @@
             </div>`;
             
         const icon = L.divIcon({
-            className: 'custom-pin-void', // 기본 클래스 무시
+            className: 'custom-pin-void',
             html: html,
             iconSize: [80, 40],
             iconAnchor: [40, 20]
@@ -401,4 +411,3 @@
 </script>
 </body>
 </html>
-
