@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>서울시 기후적응 쉼터 모니터링</title>
+    <title>서울시 기후위기 적응 모니터링</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,27 +14,17 @@
         html, body { 
             height: 100%; margin: 0; padding: 0; 
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; 
-            background: #f8f9fa; color: #333;
-            overflow: hidden;
+            background: #f8f9fa; color: #333; overflow: hidden;
         }
         
-        /* 2. 전체 레이아웃 (상하 분할) */
-        .dashboard-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+        /* 2. 레이아웃 */
+        .dashboard-container { display: flex; flex-direction: column; height: 100vh; }
 
-        /* 3. 상단 헤더 & 컨트롤 패널 */
+        /* 3. 상단 컨트롤 패널 */
         .top-panel {
-            background: white;
-            padding: 12px 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            z-index: 2000;
-            display: flex;
-            flex-wrap: wrap; 
-            align-items: center;
-            gap: 15px;
+            background: white; padding: 12px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 2000;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
             border-bottom: 1px solid #e1e4e8;
         }
 
@@ -42,84 +32,76 @@
             font-size: 18px; font-weight: 800; color: #2c3e50; margin-right: auto; white-space: nowrap;
         }
 
-        /* 컨트롤 그룹 */
         .control-group {
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 6px;
             background: #f8f9fa; padding: 4px 8px; border-radius: 8px; border: 1px solid #eee;
         }
-        .group-label { font-size: 11px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-right: 5px; }
+        .group-label { font-size: 11px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-right: 4px; }
 
-        /* 버튼 스타일 */
         .btn {
-            padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; /* 버튼 크기 키움 */
-            background: white; font-size: 13px; font-weight: 700; color: #555;
-            cursor: pointer; transition: all 0.2s;
+            padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px;
+            background: white; font-size: 12px; font-weight: 700; color: #555;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
         }
         .btn:hover { background: #eee; transform: translateY(-1px); }
         .btn.active { color: white !important; border-color: transparent; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* 색상 테마 */
+        /* 테마 색상 */
         .btn.active.elderly { background: #e74c3c !important; }
         .btn.active.poverty { background: #e67e22 !important; }
         .btn.active.filter-btn { background: #2c3e50 !important; }
-        .btn.active.filter-off { background: #7f8c8d !important; } /* 끄기 버튼 색상 */
-        
+        .btn.active.climate { background: #27ae60 !important; }
+        .btn.active.filter-off { background: #95a5a6 !important; }
         .btn.weather { font-weight: 800; color: #3498db; border-color: #3498db; }
         .btn.active.weather { background: #3498db !important; color: white !important; }
 
-        /* 4. 하단 지도 영역 */
-        .map-wrapper {
-            flex-grow: 1;
-            position: relative;
-            background: #eee;
-        }
+        /* 4. 지도 영역 */
+        .map-wrapper { flex-grow: 1; position: relative; background: #eee; }
         #map { width: 100%; height: 100%; }
 
-        /* 범례 (지도 위 오버레이) */
         .legend-overlay {
             position: absolute; bottom: 30px; left: 20px; z-index: 1000;
             background: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-size: 11px;
             backdrop-filter: blur(5px); min-width: 150px;
         }
-
-        /* 진단 배지 */
-        .debug-badge {
-            font-size: 11px; font-weight: bold; color: #fff; background: #95a5a6;
-            padding: 4px 8px; border-radius: 4px;
-        }
+        .debug-badge { font-size: 11px; font-weight: bold; color: #fff; background: #95a5a6; padding: 4px 8px; border-radius: 4px; }
         
         .fullscreen-btn {
             position: absolute; top: 15px; right: 15px; z-index: 1000;
             background: white; border: 0; width: 40px; height: 40px;
-            border-radius: 8px; font-size: 20px; cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-        
-        /* 날씨 아이콘 커스텀 (더 크게) */
-        .weather-pin div {
-            font-size: 14px !important; /* 글자 크기 증가 */
-            padding: 6px 10px !important; /* 여백 증가 */
-            border-width: 2px !important;
+            border-radius: 8px; font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
-        @media (max-width: 900px) {
-            .top-panel { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px; }
-            .header-title { text-align: center; }
-            .control-group { flex-wrap: wrap; justify-content: center; }
+        /* ★ 날씨 아이콘 스타일 개선 (캡슐형) */
+        .weather-pin-container {
+            display: flex; align-items: center; justify-content: center;
+            background: white; border-radius: 20px;
+            padding: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid white; overflow: hidden;
+            white-space: nowrap; width: max-content;
+        }
+        .weather-val {
+            padding: 6px 10px; font-weight: 800; font-size: 14px; color: white;
+        }
+        .weather-label {
+            padding: 6px 8px 6px 4px; font-size: 11px; font-weight: 700; color: #333; background: white;
+        }
+
+        @media (max-width: 960px) {
+            .top-panel { flex-direction: column; align-items: stretch; gap: 10px; }
+            .header-title { text-align: center; margin-bottom: 5px; }
+            .control-group { justify-content: center; flex-wrap: wrap; }
         }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
-    
     <div class="top-panel">
         <div class="header-title">서울시 기후위기 적응 모니터링</div>
         
-        <button class="btn weather" id="btn-weather" onclick="toggleWeather()">
-            📡 실시간 기온 (OFF)
-        </button>
+        <button class="btn weather" id="btn-weather" onclick="toggleWeather()">📡 실시간 기온 (OFF)</button>
 
         <div class="control-group">
             <span class="group-label">분석 모드</span>
@@ -130,7 +112,7 @@
         <div class="control-group">
             <span class="group-label">쉼터 필터</span>
             <button class="btn filter-btn active" onclick="filterShelter('all', this)">전체</button>
-            <button class="btn filter-btn" onclick="filterShelter('climate', this)">🌱기후동행</button>
+            <button class="btn filter-btn climate" onclick="filterShelter('climate', this)">🌱기후동행</button>
             <button class="btn filter-btn" onclick="filterShelter('senior', this)">경로당</button>
             <button class="btn filter-btn" onclick="filterShelter('public', this)">공공</button>
             <button class="btn filter-off" onclick="filterShelter('none', this)">끄기</button>
@@ -167,11 +149,11 @@
     
     let dongData = {}, shelterData = [], currentMode = 'elderly', isWeatherOn = false;
 
-    // ★ 파일 URL 설정 (기후동행쉼터 추가됨)
+    // ★ 파일 URL (기후동행 CSV 인코딩 주의)
     const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong_data.csv";
     const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong.geojson";
     const URL_SHELTER_OLD = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/shelter_data.csv";
-    const URL_SHELTER_NEW = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/climate_shelter.csv"; // 새 파일
+    const URL_SHELTER_NEW = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/climate_shelter.csv";
 
     // 좌표계 변환 설정 (GRS80 -> WGS84)
     proj4.defs("EPSG:5186", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +units=m +no_defs");
@@ -184,11 +166,11 @@
     ];
 
     function init() {
-        updateDebug("기본 데이터 로딩...");
+        updateDebug("데이터 로딩 중...");
         Papa.parse(URL_DONG, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
-                if(res.data.length === 0) return alert("데이터 로딩 실패");
+                if(res.data.length === 0) return alert("데이터 로딩 실패 (URL 확인)");
                 res.data.forEach(row => { if(row.full_name) dongData[normalizeName(row.full_name)] = row; });
                 loadGeoJSON();
             },
@@ -201,20 +183,16 @@
             .then(res => res.json())
             .then(data => {
                 geojsonLayer = L.geoJson(data, { style: styleFeature, onEachFeature: onEachFeature }).addTo(map);
-                loadShelters(); // 기존 쉼터 로딩
+                loadShelters();
             });
     }
 
     function loadShelters() {
-        // 1. 기존 쉼터 로딩
         Papa.parse(URL_SHELTER_OLD, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
-                // 기존 데이터에 type 태그 추가
                 res.data.forEach(item => item.type = 'general');
                 shelterData = shelterData.concat(res.data);
-                
-                // 2. 기후동행쉼터 로딩 (좌표변환 필요)
                 loadClimateShelters();
             }
         });
@@ -223,44 +201,45 @@
     function loadClimateShelters() {
         updateDebug("기후동행 쉼터 추가 중...");
         Papa.parse(URL_SHELTER_NEW, {
-            download: true, header: true, skipEmptyLines: true,
+            download: true, header: true, skipEmptyLines: true, 
+            encoding: "CP949", // ★ 한글 인코딩 문제 해결용
+            transformHeader: function(h) { return h.trim(); }, // 헤더 공백 제거
             complete: function(res) {
-                res.data.forEach(row => {
-                    // X, Y 좌표가 있고 숫자인 경우만 변환
-                    if (row['X좌표'] && row['Y좌표'] && !isNaN(row['X좌표'])) {
-                        // Proj4js로 좌표 변환 (EPSG:5186 -> WGS84)
-                        var p = proj4("EPSG:5186", "EPSG:4326", [parseFloat(row['X좌표']), parseFloat(row['Y좌표'])]);
-                        // 데이터 포맷 통일
-                        shelterData.push({
-                            '쉼터명칭': row['쉼터명'],
-                            '위도': p[1],
-                            '경도': p[0],
-                            'type': 'climate', // 구분자
-                            'desc': row['쉼터_구분'] // 예: CU, GS25
-                        });
-                    }
-                });
+                if(res.data.length === 0) {
+                     updateDebug("⚠️ 기후동행 파일 내용 없음");
+                } else {
+                    res.data.forEach(row => {
+                        if (row['X좌표'] && row['Y좌표'] && !isNaN(row['X좌표'])) {
+                            try {
+                                var p = proj4("EPSG:5186", "EPSG:4326", [parseFloat(row['X좌표']), parseFloat(row['Y좌표'])]);
+                                shelterData.push({
+                                    '쉼터명칭': row['쉼터명'] || "기후동행쉼터",
+                                    '위도': p[1], '경도': p[0],
+                                    'type': 'climate',
+                                    'desc': row['쉼터_구분'] || "민간협력"
+                                });
+                            } catch(e) { console.log("좌표변환 에러", e); }
+                        }
+                    });
+                }
                 
-                // 최종 렌더링
                 renderShelters('all');
                 setMode('elderly');
                 updateDebug("✅ 통합 시스템 가동");
                 setTimeout(() => document.getElementById('data-status').style.display='none', 5000);
             },
-            error: () => {
-                // 새 파일이 없어도 기존 쉼터는 보여줌
+            error: (err) => {
+                console.error(err);
                 renderShelters('all');
-                updateDebug("⚠️ 기후동행 파일 없음");
+                updateDebug("⚠️ 기후동행 파일 404 (경로 확인)");
             }
         });
     }
 
-    // --- 기능 로직 ---
-
     function toggleWeather() {
         const btn = document.getElementById('btn-weather');
         if (!isWeatherOn) {
-            if (API_KEY.includes("인증키")) { alert("API 키 입력 필요"); return; }
+            if (API_KEY.includes("인증키")) { alert("API 키를 입력하세요!"); return; }
             isWeatherOn = true; btn.classList.add('active'); btn.innerText = "📡 수신 중...";
             fetchRealTimeWeather();
         } else {
@@ -290,35 +269,37 @@
     }
 
     function drawWeatherMarker(pt, temp) {
-        // ★ 한파/폭염 색상 로직 강화
-        let color = '#2ecc71'; // 기본(안전)
-        let label = '안전';
-        
-        if (temp >= 35) { color = '#c0392b'; label = '폭염경보'; } // 35도 이상
-        else if (temp >= 33) { color = '#e74c3c'; label = '폭염주의'; } // 33도 이상
-        else if (temp >= 30) { color = '#f39c12'; label = '더위'; } // 30도 이상
-        else if (temp <= -15) { color = '#8e44ad'; label = '한파경보'; } // -15도 이하 (보라)
-        else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; } // -12도 이하 (파랑)
+        let color = '#2ecc71'; let label = '안전';
+        if (temp >= 35) { color = '#c0392b'; label = '폭염경보'; }
+        else if (temp >= 33) { color = '#e74c3c'; label = '폭염주의'; }
+        else if (temp >= 30) { color = '#f39c12'; label = '더위'; }
+        else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
 
+        // ★ 커스텀 HTML 마커 (캡슐형)
+        const html = `
+            <div class="weather-pin-container">
+                <div class="weather-val" style="background:${color}">${temp}°</div>
+                <div class="weather-label">${label}</div>
+            </div>`;
+            
         const icon = L.divIcon({
-            className: 'weather-pin',
-            html: `<div style="background:${color}; color:white; border-radius:12px; border:2px solid white; box-shadow:0 3px 6px rgba(0,0,0,0.3); font-weight:bold; white-space:nowrap;">${temp}°C</div>`
+            className: 'custom-pin-void', // 기본 클래스 무시
+            html: html,
+            iconSize: [80, 40],
+            iconAnchor: [40, 20]
         });
-        L.marker([pt.lat, pt.lng], {icon: icon}).addTo(weatherGroup).bindPopup(`<b>${pt.name}</b><br>현재기온: ${temp}℃<br>상태: ${label}`);
+        L.marker([pt.lat, pt.lng], {icon: icon}).addTo(weatherGroup).bindPopup(`<b>${pt.name}</b>`);
     }
 
     function renderShelters(cat) {
         markerCluster.clearLayers(); circleGroup.clearLayers();
-        
-        // ★ 끄기 버튼 누르면 종료
-        if (cat === 'none') return;
+        if (cat === 'none') return; // 끄기 모드
 
         shelterData.forEach(row => {
             if(!row['위도']) return;
-            
-            let isClimate = (row.type === 'climate'); // 기후동행
-            let isSenior = (row['쉼터명칭']||"").includes("경로당"); // 경로당
-            let isPublic = !isClimate && !isSenior; // 나머지 공공
+            let isClimate = (row.type === 'climate');
+            let isSenior = (row['쉼터명칭']||"").includes("경로당");
+            let isPublic = !isClimate && !isSenior; 
             
             let show = false;
             if (cat === 'all') show = true;
@@ -327,15 +308,14 @@
             else if (cat === 'public' && isPublic) show = true;
 
             if(show) {
-                // 기후동행은 초록색 핀, 나머지는 파란색 (마커 클러스터가 자동 처리하지만 팝업 구분)
                 let popup = `<b>${row['쉼터명칭']}</b>`;
                 if(row.desc) popup += `<br><span style="font-size:11px; color:#666;">${row.desc}</span>`;
-                
                 markerCluster.addLayer(L.marker([row['위도'], row['경도']]).bindPopup(popup));
-                // 기후동행은 원 색상을 다르게 할 수도 있음 (지금은 통일)
+                
+                // 기후동행: 초록색 원, 일반: 파란색 원
                 L.circle([row['위도'], row['경도']], { 
                     radius: 300, color: 'transparent', 
-                    fillColor: isClimate ? '#27ae60' : '#3498db', // 기후동행은 초록색 원
+                    fillColor: isClimate ? '#27ae60' : '#3498db', 
                     fillOpacity: 0.1, interactive: false 
                 }).addTo(circleGroup);
             }
@@ -344,15 +324,12 @@
     }
 
     function filterShelter(cat, btn) {
-        // 버튼 스타일 초기화
-        document.querySelectorAll('.btn').forEach(b => {
-            if(b.classList.contains('filter-btn') || b.classList.contains('filter-off')) b.classList.remove('active');
-        });
+        document.querySelectorAll('.filter-btn, .filter-off').forEach(b => b.classList.remove('active'));
         btn.classList.add('active'); 
         renderShelters(cat);
     }
 
-    // (아래는 기존과 동일한 시각화/유틸 함수들)
+    // 유틸리티 함수들
     function styleFeature(feature) {
         var data = getData(feature);
         var hasData = data.elderly > 0 || data.poverty > 0;
@@ -394,7 +371,7 @@
         return { elderly: 0, poverty: 0 };
     }
     function normalizeName(n) { return n ? n.replace(/·/g, ".").replace(/\s+/g, "").trim() : ""; }
-    function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
+    function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌") || m.includes("⚠️")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
     function toggleFullScreen() { var el=document.getElementById('map-wrapper'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }
     function dfs_xy_conv(code, v1, v2) {
         var RE = 6371.00877, GRID = 5.0, SLAT1 = 30.0, SLAT2 = 60.0, OLON = 126.0, OLAT = 38.0, XO = 43, YO = 136;
