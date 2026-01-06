@@ -46,13 +46,20 @@
         .btn:hover { background: #eee; transform: translateY(-1px); }
         .btn.active { color: white !important; border-color: transparent; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
+        /* 드롭다운 스타일 */
+        .gu-select {
+            padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 12px; font-weight: 700; color: #555; outline: none;
+            cursor: pointer; background: white;
+        }
+        .gu-select:hover { border-color: #aaa; }
+
         /* 테마 색상 */
         .btn.active.elderly { background: #e74c3c !important; }
         .btn.active.poverty { background: #e67e22 !important; }
         .btn.active.filter-btn { background: #2c3e50 !important; }
         .btn.active.climate { background: #27ae60 !important; }
-        .btn.active.filter-off { background: #95a5a6 !important; } /* 끄기 버튼 (회색) */
-        
+        .btn.active.filter-off { background: #95a5a6 !important; }
         .btn.weather { font-weight: 800; color: #3498db; border-color: #3498db; }
         .btn.active.weather { background: #3498db !important; color: white !important; }
 
@@ -93,6 +100,7 @@
             .top-panel { flex-direction: column; align-items: stretch; gap: 10px; }
             .header-title { text-align: center; margin-bottom: 5px; }
             .control-group { justify-content: center; flex-wrap: wrap; }
+            .gu-select { width: 100%; }
         }
     </style>
 </head>
@@ -102,13 +110,43 @@
     <div class="top-panel">
         <div class="header-title">서울시 기후적응 쉼터 모니터링</div>
         
+        <select id="gu-select" class="gu-select" onchange="moveToGu(this.value)">
+            <option value="all">📍 서울시 전체</option>
+            <option value="강남구">강남구</option>
+            <option value="강동구">강동구</option>
+            <option value="강북구">강북구</option>
+            <option value="강서구">강서구</option>
+            <option value="관악구">관악구</option>
+            <option value="광진구">광진구</option>
+            <option value="구로구">구로구</option>
+            <option value="금천구">금천구</option>
+            <option value="노원구">노원구</option>
+            <option value="도봉구">도봉구</option>
+            <option value="동대문구">동대문구</option>
+            <option value="동작구">동작구</option>
+            <option value="마포구">마포구</option>
+            <option value="서대문구">서대문구</option>
+            <option value="서초구">서초구</option>
+            <option value="성동구">성동구</option>
+            <option value="성북구">성북구</option>
+            <option value="송파구">송파구</option>
+            <option value="양천구">양천구</option>
+            <option value="영등포구">영등포구</option>
+            <option value="용산구">용산구</option>
+            <option value="은평구">은평구</option>
+            <option value="종로구">종로구</option>
+            <option value="중구">중구</option>
+            <option value="중랑구">중랑구</option>
+        </select>
+
         <button class="btn weather" id="btn-weather" onclick="toggleWeather()">📡 실시간 기온 (OFF)</button>
 
         <div class="control-group">
             <span class="group-label">분석 모드</span>
             <button class="btn mode-btn active elderly" onclick="setMode('elderly')">고령자</button>
             <button class="btn mode-btn poverty" onclick="setMode('poverty')">취약계층</button>
-            <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button> </div>
+            <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button>
+        </div>
 
         <div class="control-group">
             <span class="group-label">쉼터 필터</span>
@@ -156,11 +194,24 @@
     const URL_SHELTER_OLD = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/shelter_data.csv";
     const URL_SHELTER_NEW = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/climate_shelter.csv";
 
-    // 좌표계 변환 설정 (GRS80 -> WGS84)
+    // 좌표계 변환 설정
     proj4.defs("EPSG:5186", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +units=m +no_defs");
 
+    // 자치구별 중심 좌표 (이동용)
+    const guCoords = {
+        "종로구": [37.5729, 126.9791], "중구": [37.5636, 126.9975], "용산구": [37.5323, 126.9906],
+        "성동구": [37.5633, 127.0371], "광진구": [37.5385, 127.0823], "동대문구": [37.5744, 127.0396],
+        "중랑구": [37.6063, 127.0927], "성북구": [37.5891, 127.0182], "강북구": [37.6396, 127.0256],
+        "도봉구": [37.6688, 127.0471], "노원구": [37.6542, 127.0568], "은평구": [37.6027, 126.9291],
+        "서대문구": [37.5791, 126.9368], "마포구": [37.5663, 126.9016], "양천구": [37.5169, 126.8660],
+        "강서구": [37.5509, 126.8497], "구로구": [37.4954, 126.8874], "금천구": [37.4568, 126.8954],
+        "영등포구": [37.5263, 126.8962], "동작구": [37.5124, 126.9393], "관악구": [37.4784, 126.9516],
+        "서초구": [37.4837, 127.0324], "강남구": [37.5172, 127.0473], "송파구": [37.5145, 127.1066],
+        "강동구": [37.5301, 127.1237]
+    };
+
     const weatherPoints = [
-        { name: "종로(도심)", lat: 37.5730, lng: 126.9794 }, { name: "강남", lat: 37.5172, lng: 127.0473 },
+        { name: "종로", lat: 37.5730, lng: 126.9794 }, { name: "강남", lat: 37.5172, lng: 127.0473 },
         { name: "노원", lat: 37.6542, lng: 127.0568 }, { name: "은평", lat: 37.6027, lng: 126.9291 },
         { name: "강서", lat: 37.5509, lng: 126.8497 }, { name: "관악", lat: 37.4784, lng: 126.9516 },
         { name: "중랑", lat: 37.6066, lng: 127.0927 }
@@ -168,7 +219,6 @@
 
     function init() {
         updateDebug("데이터 로딩 중...");
-        // 동별 데이터 로딩
         Papa.parse(URL_DONG, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
@@ -190,18 +240,16 @@
     }
 
     function loadShelters() {
-        // 1. 기존 쉼터 로딩
         Papa.parse(URL_SHELTER_OLD, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
                 res.data.forEach(item => item.type = 'general');
                 shelterData = shelterData.concat(res.data);
-                loadClimateShelters(); // 이어서 기후동행 로딩
+                loadClimateShelters();
             }
         });
     }
 
-    // 기후동행 쉼터 스마트 로딩
     function loadClimateShelters() {
         updateDebug("기후동행 쉼터 분석 중...");
         
@@ -210,15 +258,17 @@
             encoding: "UTF-8", 
             complete: function(res) {
                 let count = 0;
-                
                 let sample = res.data[0];
                 let xKey = Object.keys(sample).find(k => k.includes("X") || k.includes("x"));
                 let yKey = Object.keys(sample).find(k => k.includes("Y") || k.includes("y"));
                 let nameKey = Object.keys(sample).find(k => k.includes("쉼터명") || k.includes("명칭"));
                 let descKey = Object.keys(sample).find(k => k.includes("구분"));
+                // ★ 상세 정보 컬럼 추가 (주소, 시간)
+                let addrKey = Object.keys(sample).find(k => k.includes("주소"));
+                let timeKey = Object.keys(sample).find(k => k.includes("시간"));
 
                 if (!xKey || !yKey) {
-                    updateDebug("⚠️ 컬럼 인식 실패 (콘솔 확인)");
+                    updateDebug("⚠️ 컬럼 인식 실패");
                     return;
                 }
 
@@ -233,7 +283,9 @@
                                 '쉼터명칭': row[nameKey] || "기후동행쉼터",
                                 '위도': p[1], '경도': p[0],
                                 'type': 'climate',
-                                'desc': row[descKey] || "민간협력"
+                                'desc': row[descKey] || "민간협력",
+                                'addr': row[addrKey] || "", // 주소 저장
+                                'time': row[timeKey] || ""  // 운영시간 저장
                             });
                             count++;
                         } catch(e) { console.log("좌표 에러", e); }
@@ -246,18 +298,25 @@
                     updateDebug(`✅ 통합 완료 (기후동행 ${count}개)`);
                     setTimeout(() => document.getElementById('data-status').style.display='none', 5000);
                 } else {
-                    updateDebug("⚠️ 기후동행 0개 (데이터 확인 필요)");
+                    updateDebug("⚠️ 기후동행 0개");
                 }
             },
             error: (err) => {
-                console.error(err);
                 renderShelters('all');
-                updateDebug("❌ 파일 로딩 실패 (경로 확인)");
+                updateDebug("❌ 파일 로딩 실패");
             }
         });
     }
 
     // --- 기능 로직 ---
+
+    function moveToGu(guName) {
+        if (guName === "all") {
+            map.setView([37.5665, 126.9780], 11);
+        } else if (guCoords[guName]) {
+            map.flyTo(guCoords[guName], 14, { duration: 1.5 });
+        }
+    }
 
     function toggleWeather() {
         const btn = document.getElementById('btn-weather');
@@ -299,7 +358,6 @@
         else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
         else if (temp <= -15) { color = '#8e44ad'; label = '한파경보'; }
 
-        // ★ 커스텀 HTML 마커 (캡슐형 - 겹침 방지)
         const html = `
             <div class="weather-pin-container">
                 <div class="weather-val" style="background:${color}">${temp}°</div>
@@ -317,7 +375,7 @@
 
     function renderShelters(cat) {
         markerCluster.clearLayers(); circleGroup.clearLayers();
-        if (cat === 'none') return; // 끄기 모드
+        if (cat === 'none') return;
 
         shelterData.forEach(row => {
             if(!row['위도']) return;
@@ -332,11 +390,14 @@
             else if (cat === 'public' && isPublic) show = true;
 
             if(show) {
+                // ★ 팝업 내용 강화 (주소, 시간 추가)
                 let popup = `<b>${row['쉼터명칭']}</b>`;
                 if(row.desc) popup += `<br><span style="font-size:11px; color:#666;">${row.desc}</span>`;
+                if(row.addr) popup += `<br><span style="font-size:11px; color:#888;">📍 ${row.addr}</span>`;
+                if(row.time) popup += `<br><span style="font-size:11px; color:#e67e22;">⏰ ${row.time}</span>`;
+
                 markerCluster.addLayer(L.marker([row['위도'], row['경도']]).bindPopup(popup));
                 
-                // 기후동행: 초록색 원, 일반: 파란색 원
                 L.circle([row['위도'], row['경도']], { 
                     radius: 300, color: 'transparent', 
                     fillColor: isClimate ? '#27ae60' : '#3498db', 
@@ -353,36 +414,31 @@
         renderShelters(cat);
     }
 
-    // 유틸리티 함수들
     function styleFeature(feature) {
         if (currentMode === 'none') {
-            return { stroke: true, color: '#999', weight: 1, fill: false }; // 끄기 모드: 테두리만
+            return { stroke: true, color: '#999', weight: 1, fill: false };
         }
-
         var data = getData(feature);
         var hasData = data.elderly > 0 || data.poverty > 0;
         var val = currentMode === 'elderly' ? data.elderly : data.poverty;
         return { fillColor: hasData ? getColor(val) : '#ccc', weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: hasData ? 0.7 : 0.3 };
     }
+    
     function getColor(d) {
         if (currentMode === 'elderly') return d > 8000 ? '#800026' : d > 6000 ? '#BD0026' : d > 4000 ? '#E31A1C' : d > 2000 ? '#FC4E2A' : '#FFEDA0';
         return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
     }
     
-    // ★ 분석 모드 설정 함수 (끄기 기능 추가됨)
     function setMode(mode) {
         currentMode = mode;
-        
-        // 버튼 스타일 초기화
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
         
-        // 해당 모드 버튼 활성화
         if (mode === 'none') {
             document.querySelector('.mode-btn.filter-off').classList.add('active');
-            document.getElementById('dynamic-legend').style.display = 'none'; // 범례 숨김
+            document.getElementById('dynamic-legend').style.display = 'none';
         } else {
             document.querySelector('.mode-btn.' + mode).classList.add('active');
-            document.getElementById('dynamic-legend').style.display = 'block'; // 범례 표시
+            document.getElementById('dynamic-legend').style.display = 'block';
             updateLegend();
         }
         
@@ -396,11 +452,15 @@
         html += `<hr style="margin:5px 0;"><i style="background:rgba(39,174,96,0.5); width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px;"></i>기후동행<br><i style="background:rgba(52,152,219,0.5); width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px;"></i>일반쉼터`;
         document.getElementById('dynamic-legend').innerHTML = html;
     }
+
     function onEachFeature(f, l) {
         var d = getData(f);
-        l.bindPopup(`<center><b>${f.properties.adm_nm.split(" ").pop()}</b><hr>고령: ${d.elderly.toLocaleString()}명<br>수급: ${d.poverty.toLocaleString()}명</center>`);
+        // ★ 팝업 제목에 구 이름 병기 (서울특별시 제거 후 표시)
+        var fullName = f.properties.adm_nm.replace("서울특별시 ", "");
+        l.bindPopup(`<center><b>${fullName}</b><hr>고령: ${d.elderly.toLocaleString()}명<br>수급: ${d.poverty.toLocaleString()}명</center>`);
         l.on({ mouseover: e => { e.target.setStyle({weight:3,color:'#333'}); e.target.openPopup(); }, mouseout: e => { geojsonLayer.resetStyle(e.target); e.target.closePopup(); } });
     }
+
     function getData(f) {
         var rawName = f.properties.adm_nm || f.properties.name || "";
         var key = normalizeName(rawName);
@@ -412,6 +472,7 @@
         if (mapTable[shortKey] && dongData[normalizeName(mapTable[shortKey])]) return dongData[normalizeName(mapTable[shortKey])];
         return { elderly: 0, poverty: 0 };
     }
+    
     function normalizeName(n) { return n ? n.replace(/·/g, ".").replace(/\s+/g, "").trim() : ""; }
     function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌") || m.includes("⚠️")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
     function toggleFullScreen() { var el=document.getElementById('map-wrapper'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }
