@@ -27,7 +27,9 @@
         /* 색상 테마 */
         .btn.active.elderly { background: #e74c3c !important; }
         .btn.active.poverty { background: #e67e22 !important; }
-        .btn.active.grade { background: #8e44ad !important; }
+        .btn.active.grade { background: #f1c40f !important; color: #333 !important; } /* 에너지 - 노랑 */
+        .btn.active.basement { background: #8e44ad !important; } /* 반지하 - 보라 */
+        
         .btn.active.filter-btn { background: #2c3e50 !important; }
         .btn.active.climate { background: #27ae60 !important; }
         .btn.active.filter-off { background: #95a5a6 !important; }
@@ -76,8 +78,8 @@
             <span class="group-label">분석 모드</span>
             <button class="btn mode-btn active elderly" onclick="setMode('elderly')">고령자</button>
             <button class="btn mode-btn poverty" onclick="setMode('poverty')">취약계층</button>
-            <button class="btn mode-btn grade" onclick="setMode('grade')">⚡에너지등급</button>
-            <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button>
+            <button class="btn mode-btn grade" onclick="setMode('grade')">⚡에너지</button>
+            <button class="btn mode-btn basement" onclick="setMode('basement')">🏚️주거취약</button> <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button>
         </div>
 
         <div class="control-group">
@@ -106,7 +108,7 @@
 
 <script>
     // ==========================================
-    // 🔑 [중요] Decoding 인증키 (여기에 꼭 넣어주세요!)
+    // 🔑 [중요] Decoding 인증키
     const API_KEY = "8ad84e9f4adff341e01676520be9f7171b7cfeafaaea9fc8ab7165f0f32e415e"; 
     // ==========================================
 
@@ -120,8 +122,7 @@
     
     let dongData = {}, shelterData = [], currentMode = 'elderly', isWeatherOn = false;
 
-    // ★ URL 원상 복구 (기존 데이터 사용) + 새 데이터 파일
-    // 'seoul_dong_data.csv'는 고령자/취약계층 정보가 모두 들어있는 원본입니다.
+    // ★ URL 설정
     const URL_DONG = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong_data.csv";
     const URL_GEOJSON = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/seoul_dong.geojson";
     const URL_SHELTER_OLD = "https://raw.githubusercontent.com/Zigubon/shelter-map/master/shelter_data.csv";
@@ -129,7 +130,7 @@
 
     proj4.defs("EPSG:5186", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +units=m +no_defs");
 
-    // ★ [데이터 내장] 서울시 구별 에너지 복지 통계 (2020 인구주택총조사 기반)
+    // ★ [데이터 내장] 구별 통계 (반지하/옥탑)
     const welfareStats = {
         "관악구": { basement: 16265, grade: "D" }, "강북구": { basement: 14121, grade: "D" },
         "중랑구": { basement: 12793, grade: "D" }, "은평구": { basement: 12000, grade: "C" },
@@ -151,11 +152,9 @@
 
     function init() {
         updateDebug("데이터 로딩 중...");
-        // 1. 기존 동별 데이터 (고령자/수급자 포함) 로딩
         Papa.parse(URL_DONG, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
-                if(res.data.length === 0) return alert("데이터 로딩 실패 (URL 확인)");
                 res.data.forEach(row => { 
                     if(row.full_name) dongData[normalizeName(row.full_name)] = row; 
                     else if(row.dong) dongData[normalizeName(row.dong)] = row;
@@ -174,7 +173,6 @@
     }
 
     function loadShelters() {
-        // 2. 무더위 쉼터 (경로당/공공) 로딩
         Papa.parse(URL_SHELTER_OLD, {
             download: true, header: true, skipEmptyLines: true,
             complete: function(res) {
@@ -186,7 +184,6 @@
     }
 
     function loadClimateShelters() {
-        // 3. 기후동행 쉼터 로딩 (인코딩 자동 감지)
         Papa.parse(URL_SHELTER_NEW, {
             download: true, header: true, skipEmptyLines: true, encoding: "UTF-8",
             complete: function(res) {
@@ -218,14 +215,14 @@
                 }
                 renderShelters('all');
                 setMode('elderly');
-                updateDebug("✅ 모든 시스템 가동 완료");
+                updateDebug("✅ 모니터링 시스템 가동");
                 setTimeout(()=>document.getElementById('data-status').style.display='none', 5000);
             },
             error: () => renderShelters('all')
         });
     }
 
-    // --- 시각화 ---
+    // --- 시각화 모드 ---
     function setMode(mode) {
         currentMode = mode;
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -243,45 +240,42 @@
     function styleFeature(feature) {
         if (currentMode === 'none') return { stroke: true, color: '#999', weight: 1, fill: false };
         var d = getData(feature);
+        
+        // 데이터 값 매핑
         var val = 0;
         if (currentMode === 'elderly') val = d.elderly;
-        else if (currentMode === 'poverty') val = d.poverty; // 취약계층 복구
-        else val = d.grade; // 에너지등급
+        else if (currentMode === 'poverty') val = d.poverty;
+        else if (currentMode === 'basement') val = d.basement; // 반지하 모드
+        else val = d.grade; // 에너지 등급
         
         return { fillColor: getColor(val), weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.7 };
     }
 
     function getColor(d) {
+        // 모드별 색상표
         if (currentMode === 'grade') {
             return d === 'D' ? '#c0392b' : d === 'C' ? '#e67e22' : d === 'B' ? '#f1c40f' : '#27ae60';
+        }
+        if (currentMode === 'basement') { // 보라색 계열 (반지하)
+            return d > 12000 ? '#4a235a' : d > 8000 ? '#6c3483' : d > 5000 ? '#8e44ad' : d > 3000 ? '#a569bd' : '#d7bde2';
         }
         if (currentMode === 'poverty') {
             return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
         }
-        // Elderly
+        // 고령자
         return d > 3000 ? '#800026' : d > 2000 ? '#BD0026' : d > 1500 ? '#E31A1C' : d > 1000 ? '#FC4E2A' : '#FFEDA0';
     }
 
     function updateLegend() {
         let html = "";
         if (currentMode === 'grade') {
-            html = `<b>⚡ 에너지 취약 등급</b><br>
-            <i style="background:#c0392b; width:10px; height:10px; display:inline-block;"></i> D (매우 취약)<br>
-            <i style="background:#e67e22; width:10px; height:10px; display:inline-block;"></i> C (취약)<br>
-            <i style="background:#f1c40f; width:10px; height:10px; display:inline-block;"></i> B (보통)<br>
-            <i style="background:#27ae60; width:10px; height:10px; display:inline-block;"></i> A (양호)`;
+            html = `<b>⚡ 에너지 취약 등급</b><br><i style="background:#c0392b; width:10px; height:10px; display:inline-block;"></i> D (매우 취약)<br><i style="background:#e67e22; width:10px; height:10px; display:inline-block;"></i> C (취약)<br><i style="background:#f1c40f; width:10px; height:10px; display:inline-block;"></i> B (보통)<br><i style="background:#27ae60; width:10px; height:10px; display:inline-block;"></i> A (양호)`;
+        } else if (currentMode === 'basement') {
+            html = `<b>🏚️ 반지하/옥탑 (가구)</b><br><i style="background:#4a235a; width:10px; height:10px; display:inline-block;"></i> 12,000+ (위험)<br><i style="background:#6c3483; width:10px; height:10px; display:inline-block;"></i> 8,000+<br><i style="background:#8e44ad; width:10px; height:10px; display:inline-block;"></i> 5,000+<br><i style="background:#d7bde2; width:10px; height:10px; display:inline-block;"></i> 3,000-`;
         } else if (currentMode === 'poverty') {
-            html = `<b>취약계층 (명)</b><br>
-            <i style="background:#7f2704; width:10px; height:10px; display:inline-block;"></i> 2500+<br>
-            <i style="background:#a63603; width:10px; height:10px; display:inline-block;"></i> 2000+<br>
-            <i style="background:#d94801; width:10px; height:10px; display:inline-block;"></i> 1500+<br>
-            <i style="background:#feedde; width:10px; height:10px; display:inline-block;"></i> 1000-`;
+            html = `<b>취약계층 (명)</b><br><i style="background:#7f2704; width:10px; height:10px; display:inline-block;"></i> 2500+<br><i style="background:#a63603; width:10px; height:10px; display:inline-block;"></i> 2000+<br><i style="background:#d94801; width:10px; height:10px; display:inline-block;"></i> 1500+<br><i style="background:#feedde; width:10px; height:10px; display:inline-block;"></i> 1000-`;
         } else {
-            html = `<b>고령 인구 (명)</b><br>
-            <i style="background:#800026; width:10px; height:10px; display:inline-block;"></i> 3000+<br>
-            <i style="background:#BD0026; width:10px; height:10px; display:inline-block;"></i> 2000+<br>
-            <i style="background:#E31A1C; width:10px; height:10px; display:inline-block;"></i> 1500+<br>
-            <i style="background:#FC4E2A; width:10px; height:10px; display:inline-block;"></i> 1000+`;
+            html = `<b>고령 인구 (명)</b><br><i style="background:#800026; width:10px; height:10px; display:inline-block;"></i> 3000+<br><i style="background:#BD0026; width:10px; height:10px; display:inline-block;"></i> 2000+<br><i style="background:#E31A1C; width:10px; height:10px; display:inline-block;"></i> 1500+<br><i style="background:#FC4E2A; width:10px; height:10px; display:inline-block;"></i> 1000+`;
         }
         document.getElementById('dynamic-legend').innerHTML = html;
     }
@@ -289,30 +283,38 @@
     function onEachFeature(f, l) {
         var d = getData(f);
         var fullName = f.properties.adm_nm.replace("서울특별시 ", "");
-        // 정보창에 고령자/수급자/에너지 정보 모두 표시
-        let info = `<b>${fullName}</b><hr>`;
-        if (d.elderly) info += `👴 고령자: ${Number(d.elderly).toLocaleString()}명<br>`;
-        if (d.poverty) info += `🟠 취약계층: ${Number(d.poverty).toLocaleString()}명<br>`;
-        if (d.basement) info += `🏚️ 반지하: ${Number(d.basement).toLocaleString()}가구 (구)<br>`;
-        if (d.grade) info += `⚡ 에너지등급: <b style="color:${d.grade==='D'?'red':'black'}">${d.grade}</b>`;
+        var guName = f.properties.sggnm || fullName.split(" ")[0];
         
-        l.bindPopup(`<center>${info}</center>`);
+        let welfareInfo = "";
+        let wStats = welfareStats[guName];
+        if (wStats) {
+            welfareInfo = `<hr style="margin:5px 0;">🏚️ 반지하: ${Number(wStats.basement).toLocaleString()}가구<br>⚡ 에너지등급: <b style="color:${wStats.grade==='D'?'red':'black'}">${wStats.grade}</b>`;
+        }
+
+        l.bindPopup(`<center><b>${fullName}</b><hr>👴 고령자: ${Number(d.elderly).toLocaleString()}명<br>🟠 취약계층: ${Number(d.poverty).toLocaleString()}명${welfareInfo}</center>`);
         l.on({ mouseover: e => { e.target.setStyle({weight:3,color:'#333'}); e.target.openPopup(); }, mouseout: e => { geojsonLayer.resetStyle(e.target); e.target.closePopup(); } });
     }
 
     function getData(f) {
         var rawName = f.properties.adm_nm || f.properties.name || "";
         var key = normalizeName(rawName.replace("서울특별시 ", ""));
-        var gu = f.properties.sggnm || rawName.split(" ")[1]; // 구 이름
+        var gu = f.properties.sggnm || key.split(" ")[0]; // 구 이름 추출
         
-        // 1. 기본 인구 데이터 가져오기
+        // 1. 기본 인구 데이터
         let result = { elderly: 0, poverty: 0, grade: 'B', basement: 0 };
         if (dongData[key]) {
             result.elderly = dongData[key].elderly || 0;
             result.poverty = dongData[key].poverty || 0;
+        } else {
+            // 키 매칭 실패 시 유사 키 검색 (동 이름만)
+            let dongOnly = key.split(" ").pop();
+            if(dongData[dongOnly]) {
+                result.elderly = dongData[dongOnly].elderly || 0;
+                result.poverty = dongData[dongOnly].poverty || 0;
+            }
         }
         
-        // 2. 구별 에너지 통계(JS 내장) 병합
+        // 2. 구별 에너지 통계 병합
         if (welfareStats[gu]) {
             result.grade = welfareStats[gu].grade;
             result.basement = welfareStats[gu].basement;
@@ -320,58 +322,12 @@
         return result;
     }
     
+    // --- 유틸리티 ---
     function normalizeName(n) { return n ? n.replace(/·/g, ".").replace(/\s+/g, "").trim() : ""; }
-    function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌") || m.includes("⚠️")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
+    function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
     function toggleFullScreen() { var el=document.getElementById('map-wrapper'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }
     
-    // 날씨 함수
-    function toggleWeather() {
-        const btn = document.getElementById('btn-weather');
-        if (!isWeatherOn) {
-            if (API_KEY.includes("인증키")) { alert("API 키 입력 필요"); return; }
-            isWeatherOn = true; btn.classList.add('active'); btn.innerText = "📡 수신 중...";
-            fetchRealTimeWeather();
-        } else {
-            isWeatherOn = false; btn.classList.remove('active'); btn.innerText = "📡 실시간 기온 (OFF)";
-            weatherGroup.clearLayers();
-        }
-    }
-
-    function fetchRealTimeWeather() {
-        const now = new Date(); now.setHours(now.getHours() - 1);
-        const baseDate = now.toISOString().slice(0,10).replace(/-/g,"");
-        const baseTime = String(now.getHours()).padStart(2,'0') + "00";
-        let loaded = 0;
-        weatherPoints.forEach(pt => {
-            const grid = dfs_xy_conv("toXY", pt.lat, pt.lng);
-            const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${grid.x}&ny=${grid.y}`;
-            
-            fetch(url).then(r=>r.json()).then(json => {
-                const item = json.response.body.items.item.find(i => i.category === 'T1H');
-                if(item) drawWeatherMarker(pt, parseFloat(item.obsrValue));
-            }).finally(() => {
-                loaded++;
-                if(loaded === weatherPoints.length) document.getElementById('btn-weather').innerText = "📡 수신 완료 (ON)";
-            });
-        });
-    }
-
-    function drawWeatherMarker(pt, temp) {
-        let color = '#2ecc71'; let label = '안전';
-        if (temp >= 35) { color = '#c0392b'; label = '폭염경보'; }
-        else if (temp >= 33) { color = '#e74c3c'; label = '폭염주의'; }
-        else if (temp >= 30) { color = '#f39c12'; label = '더위'; }
-        else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
-        else if (temp <= -15) { color = '#8e44ad'; label = '한파경보'; }
-
-        const html = `
-            <div class="weather-pin-container">
-                <div class="weather-val" style="background:${color}">${temp}°</div>
-                <div class="weather-label">${label}</div>
-            </div>`;
-        const icon = L.divIcon({ className: 'custom-pin-void', html: html, iconSize: [80, 40], iconAnchor: [40, 20] });
-        L.marker([pt.lat, pt.lng], {icon: icon}).addTo(weatherGroup).bindPopup(`<b>${pt.name}</b>`);
-    }
+    function moveToGu(gu) { if(gu==='all') map.setView([37.5665,126.978],11); else if(guCoords[gu]) map.flyTo(guCoords[gu],14); }
 
     function renderShelters(cat) {
         markerCluster.clearLayers(); circleGroup.clearLayers();
@@ -407,7 +363,48 @@
         btn.classList.add('active'); renderShelters(cat);
     }
 
-    function moveToGu(gu) { if(gu==='all') map.setView([37.5665,126.978],11); else if(guCoords[gu]) map.flyTo(guCoords[gu],14); }
+    // 날씨 (dfs_xy_conv 포함)
+    function toggleWeather() {
+        const btn = document.getElementById('btn-weather');
+        if (!isWeatherOn) {
+            if (API_KEY.includes("인증키")) { alert("API 키 입력 필요"); return; }
+            isWeatherOn = true; btn.classList.add('active'); btn.innerText = "📡 수신 중...";
+            fetchRealTimeWeather();
+        } else {
+            isWeatherOn = false; btn.classList.remove('active'); btn.innerText = "📡 실시간 기온 (OFF)";
+            weatherGroup.clearLayers();
+        }
+    }
+
+    function fetchRealTimeWeather() {
+        const now = new Date(); now.setHours(now.getHours() - 1);
+        const baseDate = now.toISOString().slice(0,10).replace(/-/g,"");
+        const baseTime = String(now.getHours()).padStart(2,'0') + "00";
+        let loaded = 0;
+        weatherPoints.forEach(pt => {
+            const grid = dfs_xy_conv("toXY", pt.lat, pt.lng);
+            const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${grid.x}&ny=${grid.y}`;
+            fetch(url).then(r=>r.json()).then(json => {
+                const item = json.response.body.items.item.find(i => i.category === 'T1H');
+                if(item) drawWeatherMarker(pt, parseFloat(item.obsrValue));
+            }).finally(() => {
+                loaded++; if(loaded===weatherPoints.length) document.getElementById('btn-weather').innerText="📡 수신 완료 (ON)";
+            });
+        });
+    }
+
+    function drawWeatherMarker(pt, temp) {
+        let color = '#2ecc71'; let label = '안전';
+        if (temp >= 35) { color = '#c0392b'; label = '폭염경보'; }
+        else if (temp >= 33) { color = '#e74c3c'; label = '폭염주의'; }
+        else if (temp >= 30) { color = '#f39c12'; label = '더위'; }
+        else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
+        else if (temp <= -15) { color = '#8e44ad'; label = '한파경보'; }
+
+        const html = `<div class="weather-pin-container"><div class="weather-val" style="background:${color}">${temp}°</div><div class="weather-label">${label}</div></div>`;
+        const icon = L.divIcon({ className: 'custom-pin-void', html: html, iconSize: [80, 40], iconAnchor: [40, 20] });
+        L.marker([pt.lat, pt.lng], {icon: icon}).addTo(weatherGroup).bindPopup(`<b>${pt.name}</b>`);
+    }
 
     function dfs_xy_conv(code, v1, v2) {
         var RE = 6371.00877, GRID = 5.0, SLAT1 = 30.0, SLAT2 = 60.0, OLON = 126.0, OLAT = 38.0, XO = 43, YO = 136;
