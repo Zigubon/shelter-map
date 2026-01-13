@@ -27,8 +27,8 @@
         /* 색상 테마 */
         .btn.active.elderly { background: #e74c3c !important; }
         .btn.active.poverty { background: #e67e22 !important; }
-        .btn.active.grade { background: #f1c40f !important; color: #333 !important; } /* 에너지 - 노랑 */
-        .btn.active.basement { background: #8e44ad !important; } /* 반지하 - 보라 */
+        .btn.active.grade { background: #f1c40f !important; color: #333 !important; }
+        .btn.active.basement { background: #8e44ad !important; }
         
         .btn.active.filter-btn { background: #2c3e50 !important; }
         .btn.active.climate { background: #27ae60 !important; }
@@ -79,7 +79,8 @@
             <button class="btn mode-btn active elderly" onclick="setMode('elderly')">고령자</button>
             <button class="btn mode-btn poverty" onclick="setMode('poverty')">취약계층</button>
             <button class="btn mode-btn grade" onclick="setMode('grade')">⚡에너지</button>
-            <button class="btn mode-btn basement" onclick="setMode('basement')">🏚️주거취약</button> <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button>
+            <button class="btn mode-btn basement" onclick="setMode('basement')">🏚️주거취약</button>
+            <button class="btn mode-btn filter-off" onclick="setMode('none')">끄기</button>
         </div>
 
         <div class="control-group">
@@ -108,7 +109,7 @@
 
 <script>
     // ==========================================
-    // 🔑 [중요] Decoding 인증키
+    // 🔑 [중요] 사용 중인 Decoding 인증키를 넣으세요.
     const API_KEY = "8ad84e9f4adff341e01676520be9f7171b7cfeafaaea9fc8ab7165f0f32e415e"; 
     // ==========================================
 
@@ -130,7 +131,7 @@
 
     proj4.defs("EPSG:5186", "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +units=m +no_defs");
 
-    // ★ [데이터 내장] 구별 통계 (반지하/옥탑)
+    // ★ [데이터 내장] 구별 통계
     const welfareStats = {
         "관악구": { basement: 16265, grade: "D" }, "강북구": { basement: 14121, grade: "D" },
         "중랑구": { basement: 12793, grade: "D" }, "은평구": { basement: 12000, grade: "C" },
@@ -148,7 +149,19 @@
     };
 
     const guCoords = { "종로구":[37.573,126.979],"중구":[37.564,126.998],"용산구":[37.532,126.991],"성동구":[37.563,127.037],"광진구":[37.539,127.082],"동대문구":[37.574,127.040],"중랑구":[37.606,127.093],"성북구":[37.589,127.018],"강북구":[37.640,127.026],"도봉구":[37.669,127.047],"노원구":[37.654,127.057],"은평구":[37.603,126.929],"서대문구":[37.579,126.937],"마포구":[37.566,126.902],"양천구":[37.517,126.866],"강서구":[37.551,126.850],"구로구":[37.495,126.887],"금천구":[37.457,126.895],"영등포구":[37.526,126.896],"동작구":[37.512,126.939],"관악구":[37.478,126.952],"서초구":[37.484,127.032],"강남구":[37.517,127.047],"송파구":[37.515,127.107],"강동구":[37.530,127.124] };
-    const weatherPoints = [ {name:"종로",lat:37.573,lng:126.979}, {name:"강남",lat:37.517,lng:127.047}, {name:"노원",lat:37.654,lng:127.057}, {name:"은평",lat:37.603,lng:126.929}, {name:"강서",lat:37.551,lng:126.850}, {name:"관악",lat:37.478,lng:126.952}, {name:"중랑",lat:37.607,lng:127.093} ];
+    
+    // ★ 서울시 25개 자치구 전체 날씨 포인트
+    const weatherPoints = [
+        {name:"강남",lat:37.517,lng:127.047}, {name:"강동",lat:37.530,lng:127.124}, {name:"강북",lat:37.639,lng:127.025},
+        {name:"강서",lat:37.551,lng:126.850}, {name:"관악",lat:37.478,lng:126.952}, {name:"광진",lat:37.538,lng:127.082},
+        {name:"구로",lat:37.495,lng:126.887}, {name:"금천",lat:37.457,lng:126.895}, {name:"노원",lat:37.654,lng:127.057},
+        {name:"도봉",lat:37.668,lng:127.047}, {name:"동대문",lat:37.574,lng:127.040}, {name:"동작",lat:37.512,lng:126.939},
+        {name:"마포",lat:37.566,lng:126.902}, {name:"서대문",lat:37.579,lng:126.937}, {name:"서초",lat:37.484,lng:127.032},
+        {name:"성동",lat:37.563,lng:127.037}, {name:"성북",lat:37.589,lng:127.018}, {name:"송파",lat:37.514,lng:127.107},
+        {name:"양천",lat:37.517,lng:126.866}, {name:"영등포",lat:37.526,lng:126.896}, {name:"용산",lat:37.532,lng:126.991},
+        {name:"은평",lat:37.603,lng:126.929}, {name:"종로",lat:37.573,lng:126.979}, {name:"중구",lat:37.564,lng:126.998},
+        {name:"중랑",lat:37.607,lng:127.093}
+    ];
 
     function init() {
         updateDebug("데이터 로딩 중...");
@@ -222,7 +235,6 @@
         });
     }
 
-    // --- 시각화 모드 ---
     function setMode(mode) {
         currentMode = mode;
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -240,29 +252,18 @@
     function styleFeature(feature) {
         if (currentMode === 'none') return { stroke: true, color: '#999', weight: 1, fill: false };
         var d = getData(feature);
-        
-        // 데이터 값 매핑
         var val = 0;
         if (currentMode === 'elderly') val = d.elderly;
         else if (currentMode === 'poverty') val = d.poverty;
-        else if (currentMode === 'basement') val = d.basement; // 반지하 모드
-        else val = d.grade; // 에너지 등급
-        
+        else if (currentMode === 'basement') val = d.basement;
+        else val = d.grade;
         return { fillColor: getColor(val), weight: 1, opacity: 1, color: 'white', dashArray: '3', fillOpacity: 0.7 };
     }
 
     function getColor(d) {
-        // 모드별 색상표
-        if (currentMode === 'grade') {
-            return d === 'D' ? '#c0392b' : d === 'C' ? '#e67e22' : d === 'B' ? '#f1c40f' : '#27ae60';
-        }
-        if (currentMode === 'basement') { // 보라색 계열 (반지하)
-            return d > 12000 ? '#4a235a' : d > 8000 ? '#6c3483' : d > 5000 ? '#8e44ad' : d > 3000 ? '#a569bd' : '#d7bde2';
-        }
-        if (currentMode === 'poverty') {
-            return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
-        }
-        // 고령자
+        if (currentMode === 'grade') return d === 'D' ? '#c0392b' : d === 'C' ? '#e67e22' : d === 'B' ? '#f1c40f' : '#27ae60';
+        if (currentMode === 'basement') return d > 12000 ? '#4a235a' : d > 8000 ? '#6c3483' : d > 5000 ? '#8e44ad' : d > 3000 ? '#a569bd' : '#d7bde2';
+        if (currentMode === 'poverty') return d > 2500 ? '#7f2704' : d > 2000 ? '#a63603' : d > 1500 ? '#d94801' : d > 1000 ? '#f16913' : '#feedde';
         return d > 3000 ? '#800026' : d > 2000 ? '#BD0026' : d > 1500 ? '#E31A1C' : d > 1000 ? '#FC4E2A' : '#FFEDA0';
     }
 
@@ -284,13 +285,11 @@
         var d = getData(f);
         var fullName = f.properties.adm_nm.replace("서울특별시 ", "");
         var guName = f.properties.sggnm || fullName.split(" ")[0];
-        
         let welfareInfo = "";
         let wStats = welfareStats[guName];
         if (wStats) {
             welfareInfo = `<hr style="margin:5px 0;">🏚️ 반지하: ${Number(wStats.basement).toLocaleString()}가구<br>⚡ 에너지등급: <b style="color:${wStats.grade==='D'?'red':'black'}">${wStats.grade}</b>`;
         }
-
         l.bindPopup(`<center><b>${fullName}</b><hr>👴 고령자: ${Number(d.elderly).toLocaleString()}명<br>🟠 취약계층: ${Number(d.poverty).toLocaleString()}명${welfareInfo}</center>`);
         l.on({ mouseover: e => { e.target.setStyle({weight:3,color:'#333'}); e.target.openPopup(); }, mouseout: e => { geojsonLayer.resetStyle(e.target); e.target.closePopup(); } });
     }
@@ -298,23 +297,19 @@
     function getData(f) {
         var rawName = f.properties.adm_nm || f.properties.name || "";
         var key = normalizeName(rawName.replace("서울특별시 ", ""));
-        var gu = f.properties.sggnm || key.split(" ")[0]; // 구 이름 추출
+        var gu = f.properties.sggnm || key.split(" ")[0];
         
-        // 1. 기본 인구 데이터
         let result = { elderly: 0, poverty: 0, grade: 'B', basement: 0 };
         if (dongData[key]) {
             result.elderly = dongData[key].elderly || 0;
             result.poverty = dongData[key].poverty || 0;
         } else {
-            // 키 매칭 실패 시 유사 키 검색 (동 이름만)
             let dongOnly = key.split(" ").pop();
             if(dongData[dongOnly]) {
                 result.elderly = dongData[dongOnly].elderly || 0;
                 result.poverty = dongData[dongOnly].poverty || 0;
             }
         }
-        
-        // 2. 구별 에너지 통계 병합
         if (welfareStats[gu]) {
             result.grade = welfareStats[gu].grade;
             result.basement = welfareStats[gu].basement;
@@ -322,48 +317,39 @@
         return result;
     }
     
-    // --- 유틸리티 ---
     function normalizeName(n) { return n ? n.replace(/·/g, ".").replace(/\s+/g, "").trim() : ""; }
     function updateDebug(m) { var el=document.getElementById('data-status'); el.innerText=m; if(m.includes("❌")) el.style.background="#e74c3c"; else el.style.background="#2e7d32"; }
     function toggleFullScreen() { var el=document.getElementById('map-wrapper'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }
-    
     function moveToGu(gu) { if(gu==='all') map.setView([37.5665,126.978],11); else if(guCoords[gu]) map.flyTo(guCoords[gu],14); }
-
     function renderShelters(cat) {
         markerCluster.clearLayers(); circleGroup.clearLayers();
         if (cat === 'none') return;
-
         shelterData.forEach(row => {
             if(!row['위도']) return;
             let isClimate = (row.type === 'climate');
             let isSenior = (row['쉼터명칭']||"").includes("경로당");
             let isPublic = !isClimate && !isSenior; 
-            
             let show = false;
             if (cat === 'all') show = true;
             else if (cat === 'climate' && isClimate) show = true;
             else if (cat === 'senior' && isSenior && !isClimate) show = true;
             else if (cat === 'public' && isPublic) show = true;
-
             if(show) {
                 let popup = `<b>${row['쉼터명칭']}</b>`;
                 if(row.desc) popup += `<br><span style="font-size:11px; color:#666;">${row.desc}</span>`;
                 if(row.addr) popup += `<br><span style="font-size:11px; color:#888;">📍 ${row.addr}</span>`;
                 if(row.time) popup += `<br><span style="font-size:11px; color:#e67e22;">⏰ ${row.time}</span>`;
-
                 markerCluster.addLayer(L.marker([row['위도'], row['경도']]).bindPopup(popup));
                 L.circle([row['위도'], row['경도']], { radius: 300, color: 'transparent', fillColor: isClimate ? '#27ae60' : '#3498db', fillOpacity: 0.1, interactive: false }).addTo(circleGroup);
             }
         });
         map.addLayer(markerCluster);
     }
-
     function filterShelter(cat, btn) {
         document.querySelectorAll('.filter-btn, .filter-off').forEach(b => b.classList.remove('active'));
         btn.classList.add('active'); renderShelters(cat);
     }
 
-    // 날씨 (dfs_xy_conv 포함)
     function toggleWeather() {
         const btn = document.getElementById('btn-weather');
         if (!isWeatherOn) {
@@ -377,16 +363,28 @@
     }
 
     function fetchRealTimeWeather() {
-        const now = new Date(); now.setHours(now.getHours() - 1);
-        const baseDate = now.toISOString().slice(0,10).replace(/-/g,"");
-        const baseTime = String(now.getHours()).padStart(2,'0') + "00";
+        const now = new Date();
+        // 45분 이전에 호출 시 1시간 전 데이터 사용 (API 제공 시점 안전장치)
+        if (now.getMinutes() < 45) {
+            now.setHours(now.getHours() - 1);
+        }
+        
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const baseDate = `${yyyy}${mm}${dd}`;
+        const baseTime = String(now.getHours()).padStart(2, '0') + "00";
+
         let loaded = 0;
         weatherPoints.forEach(pt => {
             const grid = dfs_xy_conv("toXY", pt.lat, pt.lng);
             const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${grid.x}&ny=${grid.y}`;
+            
             fetch(url).then(r=>r.json()).then(json => {
-                const item = json.response.body.items.item.find(i => i.category === 'T1H');
-                if(item) drawWeatherMarker(pt, parseFloat(item.obsrValue));
+                if(json.response && json.response.body && json.response.body.items) {
+                    const item = json.response.body.items.item.find(i => i.category === 'T1H');
+                    if(item) drawWeatherMarker(pt, parseFloat(item.obsrValue));
+                }
             }).finally(() => {
                 loaded++; if(loaded===weatherPoints.length) document.getElementById('btn-weather').innerText="📡 수신 완료 (ON)";
             });
@@ -399,8 +397,6 @@
         else if (temp >= 33) { color = '#e74c3c'; label = '폭염주의'; }
         else if (temp >= 30) { color = '#f39c12'; label = '더위'; }
         else if (temp <= -12) { color = '#2980b9'; label = '한파주의'; }
-        else if (temp <= -15) { color = '#8e44ad'; label = '한파경보'; }
-
         const html = `<div class="weather-pin-container"><div class="weather-val" style="background:${color}">${temp}°</div><div class="weather-label">${label}</div></div>`;
         const icon = L.divIcon({ className: 'custom-pin-void', html: html, iconSize: [80, 40], iconAnchor: [40, 20] });
         L.marker([pt.lat, pt.lng], {icon: icon}).addTo(weatherGroup).bindPopup(`<b>${pt.name}</b>`);
